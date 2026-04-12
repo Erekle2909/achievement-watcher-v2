@@ -1,0 +1,21 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/core" },
+    { "path": "packages/db" },
+    { "path": "packages/notifications" },
+    { "path": "apps/desktop" },
+    { "path": "plugins/steam" },
+    { "path": "plugins/goldberg" },
+    { "path": "plugins/codex" },
+    { "path": "plugins/empress" },
+    { "path": "plugins/skidrow" },
+    { "path": "plugins/ali213" },
+    { "path": "plugins/rpcs3" },
+    { "path": "plugins/uplay-r1" },
+    { "path": "plugins/uplay-r2" },
+    { "path": "plugins/creamapi" },
+    { "path": "plugins/retroarch" }
+  ]
+}
