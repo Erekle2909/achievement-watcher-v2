@@ -16,5 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "npx rimraf packages/*/dist apps/*/dist plugins/*/dist"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
   }
 }
