@@ -9,6 +9,11 @@
   },
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "dev": "pnpm --filter @achievement-watcher/desktop dev",
+    "build": "pnpm --filter @achievement-watcher/desktop build",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && pnpm changeset publish",
     "lint": "eslint . --no-warn-ignored --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -28,6 +33,7 @@
     ]
   },
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
