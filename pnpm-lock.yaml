@@ -142,6 +142,9 @@ importers:
 
   plugins/ali213:
     dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
@@ -157,6 +160,9 @@ importers:
 
   plugins/creamapi:
     dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
@@ -194,6 +200,9 @@ importers:
 
   plugins/skidrow:
     dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
