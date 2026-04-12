@@ -5,14 +5,24 @@ interface SidebarProps {
   onNavigate: (page: Page) => void;
 }
 
-const navItems: { id: Page; label: string; icon: string }[] = [
+type NavPage = "dashboard" | "library" | "stats" | "settings";
+
+const navItems: { id: NavPage; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "🏠" },
   { id: "library", label: "Library", icon: "🎮" },
   { id: "stats", label: "Stats", icon: "📊" },
   { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
+// "game-detail" is a sub-page of "library" — highlight library nav item for it
+function resolveActiveNav(page: Page): NavPage {
+  if (page === "game-detail") return "library";
+  return page as NavPage;
+}
+
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
+  const activeNav = resolveActiveNav(currentPage);
+
   return (
     <aside className="w-56 bg-zinc-900 border-r border-zinc-800 flex flex-col">
       <div className="p-4 border-b border-zinc-800">
@@ -27,7 +37,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               onNavigate(item.id);
             }}
             className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition-colors ${
-              currentPage === item.id
+              activeNav === item.id
                 ? "bg-indigo-500/20 text-indigo-400"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
             }`}

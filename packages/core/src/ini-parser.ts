@@ -14,7 +14,7 @@ export function parseAchievementIni(content: string): Map<string, Record<string,
     if (!trimmed || trimmed.startsWith(";") || trimmed.startsWith("#")) continue;
 
     const sectionMatch = trimmed.match(/^\[(.+)\]$/);
-    if (sectionMatch) {
+    if (sectionMatch?.[1]) {
       currentSection = sectionMatch[1];
       if (!sections.has(currentSection)) {
         sections.set(currentSection, {});
@@ -23,7 +23,7 @@ export function parseAchievementIni(content: string): Map<string, Record<string,
     }
 
     const kvMatch = trimmed.match(/^([^=]+)=(.*)$/);
-    if (kvMatch && currentSection) {
+    if (kvMatch?.[1] != null && kvMatch[2] != null && currentSection) {
       const section = sections.get(currentSection);
       if (section) {
         section[kvMatch[1].trim()] = kvMatch[2].trim();
