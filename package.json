@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --build",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "clean": "npx rimraf packages/*/dist apps/*/dist plugins/*/dist"
   },
@@ -24,6 +24,7 @@
     "prettier": "^3.8.2",
     "rimraf": "^6.1.3",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.1"
+    "typescript-eslint": "^8.58.1",
+    "vitest": "^4.1.4"
   }
 }
