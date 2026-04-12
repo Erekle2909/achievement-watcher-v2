@@ -14,14 +14,19 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-non-null-assertion": "error",
     },
   },
   {
-    ignores: ["**/dist/", "**/node_modules/", "**/*.js", "**/*.mjs"],
-  }
+    ignores: [
+      "**/dist/",
+      "**/node_modules/",
+      "**/*.js",
+      "**/*.mjs",
+      "**/*.d.ts",
+      "**/vitest.config.ts",
+      "**/vitest.workspace.ts",
+    ],
+  },
 );
