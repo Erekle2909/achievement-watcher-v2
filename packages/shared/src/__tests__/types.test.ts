@@ -1,5 +1,5 @@
 import { describe, it, expectTypeOf } from "vitest";
-import type { Achievement, ParsedGame, ParseResult } from "../types/index.js";
+import type { Achievement, ParsedGame, ParseResult, AchievementPlugin } from "../types/index.js";
 
 describe("Achievement types", () => {
   it("Achievement has required fields", () => {
@@ -43,5 +43,27 @@ describe("Achievement types", () => {
       },
     };
     expectTypeOf(failure).toExtend<ParseResult<ParsedGame>>();
+  });
+});
+
+describe("Plugin types", () => {
+  it("AchievementPlugin has required methods", () => {
+    expectTypeOf<AchievementPlugin>().toHaveProperty("id");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("name");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("source");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("detectPaths");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("detectGame");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("parse");
+    expectTypeOf<AchievementPlugin>().toHaveProperty("watchPatterns");
+  });
+
+  it("detectGame returns Promise<boolean>", () => {
+    expectTypeOf<AchievementPlugin["detectGame"]>().returns.toEqualTypeOf<Promise<boolean>>();
+  });
+
+  it("parse returns Promise<ParseResult<ParsedGame>>", () => {
+    expectTypeOf<AchievementPlugin["parse"]>().returns.toEqualTypeOf<
+      Promise<ParseResult<ParsedGame>>
+    >();
   });
 });
