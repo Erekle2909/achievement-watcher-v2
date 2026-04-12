@@ -11,6 +11,10 @@
   "dependencies": {
     "@achievement-watcher/shared": "workspace:*"
   },
+  "devDependencies": {
+    "@achievement-watcher/plugin-goldberg": "workspace:*",
+    "@achievement-watcher/plugin-steam": "workspace:*"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   }

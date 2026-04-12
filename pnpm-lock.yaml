@@ -58,6 +58,13 @@ importers:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      "@achievement-watcher/plugin-goldberg":
+        specifier: workspace:*
+        version: link:../../plugins/goldberg
+      "@achievement-watcher/plugin-steam":
+        specifier: workspace:*
+        version: link:../../plugins/steam
 
   packages/db:
     dependencies:
@@ -143,6 +150,10 @@ importers:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
 
   plugins/uplay-r1:
     dependencies:
