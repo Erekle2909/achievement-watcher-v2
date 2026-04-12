@@ -9,7 +9,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@achievement-watcher/shared": "workspace:*"
+    "@achievement-watcher/db": "workspace:*",
+    "@achievement-watcher/shared": "workspace:*",
+    "chokidar": "^5.0.0"
   },
   "devDependencies": {
     "@achievement-watcher/plugin-goldberg": "workspace:*",

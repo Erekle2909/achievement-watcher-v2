@@ -7,3 +7,4 @@ export {
   type SteamAchievementSchema,
   type SteamGameSchema,
 } from "./steam-metadata.js";
+export { createEventBus, type EngineEventBus } from "./event-bus.js";
