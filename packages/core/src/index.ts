@@ -10,3 +10,4 @@ export {
 export { createEventBus, type EngineEventBus } from "./event-bus.js";
 export { createDiscoveryService, type DiscoveryService, type DiscoveryDeps } from "./discovery.js";
 export { createWatcherService, type WatcherService, type WatcherDeps } from "./watcher.js";
+export { createAchievementEngine, type AchievementEngine, type EngineDeps } from "./engine.js";
