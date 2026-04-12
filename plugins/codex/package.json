@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@achievement-watcher/core": "workspace:*",
     "@achievement-watcher/shared": "workspace:*"
   },
   "scripts": {
