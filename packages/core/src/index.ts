@@ -1,5 +1,6 @@
 export { createPluginRegistry, type PluginRegistry } from "./plugin-loader.js";
 export { parseAchievementIni } from "./ini-parser.js";
+export { parseJsonAchievementSave } from "./json-achievement-parser.js";
 export {
   getSteamHeaderUrl,
   getSteamAchievementIconUrl,

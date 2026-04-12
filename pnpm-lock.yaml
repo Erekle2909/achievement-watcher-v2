@@ -148,6 +148,9 @@ importers:
 
   plugins/codex:
     dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
@@ -160,6 +163,9 @@ importers:
 
   plugins/empress:
     dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
