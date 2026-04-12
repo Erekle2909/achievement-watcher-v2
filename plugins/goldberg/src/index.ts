@@ -1,1 +1,33 @@
-export {};
+import { join } from "node:path";
+import { existsSync } from "node:fs";
+import type { AchievementPlugin, ParseResult, ParsedGame } from "@achievement-watcher/shared";
+import { parseGoldbergSave } from "./parser.js";
+import { getGoldbergSavePaths, GOLDBERG_SAVE_FILE } from "./paths.js";
+
+export const goldbergPlugin: AchievementPlugin = {
+  id: "goldberg",
+  name: "Goldberg SteamEmu",
+  source: "steam-emu",
+
+  detectPaths() {
+    return getGoldbergSavePaths();
+  },
+
+  detectGame(dirPath: string) {
+    return Promise.resolve(existsSync(join(dirPath, GOLDBERG_SAVE_FILE)));
+  },
+
+  async parse(gamePath: string): Promise<ParseResult<ParsedGame>> {
+    const result = await parseGoldbergSave(join(gamePath, GOLDBERG_SAVE_FILE));
+    if (!result.ok) return result as ParseResult<ParsedGame>;
+
+    const appId = gamePath.split(/[\\/]/).pop() ?? "unknown";
+    return { ok: true, data: { appId, name: appId, achievements: result.data } };
+  },
+
+  watchPatterns(gamePath: string) {
+    return [join(gamePath, GOLDBERG_SAVE_FILE)];
+  },
+};
+
+export default goldbergPlugin;
