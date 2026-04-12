@@ -191,12 +191,20 @@ importers:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
 
   plugins/rpcs3:
     dependencies:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
 
   plugins/skidrow:
     dependencies:
@@ -222,12 +230,20 @@ importers:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
 
   plugins/uplay-r2:
     dependencies:
       "@achievement-watcher/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
 
 packages:
   7zip-bin@5.2.0:
