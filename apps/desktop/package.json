@@ -1,0 +1,16 @@
+{
+  "name": "@achievement-watcher/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@achievement-watcher/shared": "workspace:*",
+    "@achievement-watcher/core": "workspace:*",
+    "@achievement-watcher/db": "workspace:*",
+    "@achievement-watcher/notifications": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

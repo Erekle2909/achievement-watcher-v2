@@ -38,6 +38,107 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(vite@8.0.8(yaml@2.8.3))
 
+  apps/desktop:
+    dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
+      "@achievement-watcher/db":
+        specifier: workspace:*
+        version: link:../../packages/db
+      "@achievement-watcher/notifications":
+        specifier: workspace:*
+        version: link:../../packages/notifications
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  packages/core:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/db:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/notifications:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/shared: {}
+
+  plugins/ali213:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/codex:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/creamapi:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/empress:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/goldberg:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/retroarch:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/rpcs3:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/skidrow:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/steam:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/uplay-r1:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  plugins/uplay-r2:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+
 packages:
   "@emnapi/core@1.9.2":
     resolution:
