@@ -5,12 +5,28 @@
   "type": "module",
   "main": "./src/index.ts",
   "dependencies": {
-    "@achievement-watcher/shared": "workspace:*",
     "@achievement-watcher/core": "workspace:*",
     "@achievement-watcher/db": "workspace:*",
-    "@achievement-watcher/notifications": "workspace:*"
+    "@achievement-watcher/notifications": "workspace:*",
+    "@achievement-watcher/shared": "workspace:*",
+    "electron": "33",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron-builder": "^26.8.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
   }
 }

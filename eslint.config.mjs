@@ -35,6 +35,7 @@ export default tseslint.config(
       "**/vitest.config.ts",
       "**/vitest.workspace.ts",
       "**/drizzle.config.ts",
+      "**/vite.config.ts",
     ],
   },
 );
