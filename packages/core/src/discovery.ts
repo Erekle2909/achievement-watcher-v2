@@ -81,37 +81,42 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
         for (const basePath of basePaths) {
           const subdirs = listSubdirs(basePath);
 
-          for (const subdir of subdirs) {
+          // If the base path has no subdirectories, try treating the base path
+          // itself as a game directory. This supports plugins like Steam where
+          // detectPaths() returns one path per game rather than a parent directory.
+          const candidates = subdirs.length > 0 ? subdirs : [basePath];
+
+          for (const candidate of candidates) {
             let detected: boolean;
             try {
-              detected = await plugin.detectGame(subdir);
+              detected = await plugin.detectGame(candidate);
             } catch {
               eventBus.emit("error", {
                 source: plugin.id,
                 code: "DETECT_GAME_ERROR",
                 severity: "warn",
-                message: `detectGame threw for path: ${subdir}`,
-                context: { path: subdir },
+                message: `detectGame threw for path: ${candidate}`,
+                context: { path: candidate },
               });
               continue;
             }
 
             if (!detected) continue;
 
-            const result = await plugin.parse(subdir);
+            const result = await plugin.parse(candidate);
             if (!result.ok) {
               eventBus.emit("error", {
                 source: plugin.id,
                 code: result.error.code,
                 severity: "warn",
                 message: result.error.message,
-                context: { path: subdir },
+                context: { path: candidate },
               });
               continue;
             }
 
             const { appId, name, achievements } = result.data;
-            const gameEntry = toGameEntry(plugin, appId, name, subdir);
+            const gameEntry = toGameEntry(plugin, appId, name, candidate);
 
             // Upsert game into DB
             gq.upsert({
