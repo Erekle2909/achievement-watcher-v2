@@ -4,10 +4,9 @@ import {
   getRarityLabel,
   getRarityColor,
   getSourceBadge,
+  getSourceLabel,
   rarityFromPercent,
   steamHeaderUrl,
-  SOURCE_LABELS,
-  type AchievementSource,
   type AchievementRarity,
 } from "../lib/utils";
 
@@ -20,6 +19,7 @@ interface GameRow {
   appId: string;
   name: string;
   source: string;
+  iconUrl: string | null;
   totalAchievements: number;
   unlockedAchievements: number;
   lastPlayed: number | null;
@@ -218,7 +218,6 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
     );
   }
 
-  const source = game.source as AchievementSource;
   const pct =
     game.totalAchievements > 0
       ? Math.round((game.unlockedAchievements / game.totalAchievements) * 100)
@@ -239,13 +238,19 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
 
       {/* Game header */}
       <div className="rounded-xl p-6 flex flex-col gap-4 border border-zinc-700/50 relative overflow-hidden">
-        {/* Background image */}
+        {/* Background image with fallback chain */}
         <img
-          src={steamHeaderUrl(game.appId)}
+          src={game.iconUrl || steamHeaderUrl(game.appId)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-20"
           onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
+            const img = e.target as HTMLImageElement;
+            const fallback = `https://cdn.akamai.steamstatic.com/steam/apps/${game.appId}/capsule_616x353.jpg`;
+            if (!img.src.includes("capsule_616x353")) {
+              img.src = fallback;
+            } else {
+              img.style.display = "none";
+            }
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/90 to-zinc-950/60" />
@@ -255,9 +260,9 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
             <h2 className="text-2xl font-bold text-zinc-100">{game.name}</h2>
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getSourceBadge(source)}`}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getSourceBadge(game.source)}`}
               >
-                {SOURCE_LABELS[source]}
+                {getSourceLabel(game.source)}
               </span>
               <span className="text-xs text-zinc-400">
                 {Math.round(game.playtime / 3600)}h playtime

@@ -5,6 +5,7 @@ import {
   getRarityColor,
   formatRelativeTime,
   rarityFromPercent,
+  steamHeaderUrl,
   type AchievementRarity,
 } from "../lib/utils";
 
@@ -17,6 +18,7 @@ interface GameRow {
   appId: string;
   name: string;
   source: string;
+  iconUrl: string | null;
   totalAchievements: number;
   unlockedAchievements: number;
   lastPlayed: number | null;
@@ -29,6 +31,8 @@ interface RecentUnlockRow {
   achievementId: string;
   name: string;
   description: string;
+  iconUrl: string | null;
+  iconLockedUrl: string | null;
   unlocked: boolean;
   unlockTime: number | null;
   rarity: number | null;
@@ -47,9 +51,20 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, sub, accentClass = "text-zinc-100" }: StatCardProps) {
+  // Map text accent class to a matching left-border color
+  const borderColor = accentClass.includes("indigo")
+    ? "border-l-indigo-500"
+    : accentClass.includes("green")
+      ? "border-l-green-500"
+      : accentClass.includes("amber")
+        ? "border-l-amber-500"
+        : "border-l-zinc-600";
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col gap-1">
-      <span className="text-xs text-zinc-500 uppercase tracking-wider">{label}</span>
+    <div
+      className={`bg-zinc-900 border border-zinc-800 ${borderColor} border-l-2 rounded-lg p-4 flex flex-col gap-1`}
+    >
+      <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">{label}</span>
       <span className={`text-3xl font-bold ${accentClass}`}>{value}</span>
       {sub && <span className="text-xs text-zinc-500">{sub}</span>}
     </div>
@@ -63,16 +78,31 @@ function StatCard({ label, value, sub, accentClass = "text-zinc-100" }: StatCard
 interface UnlockRowProps {
   unlock: RecentUnlockRow;
   gameName: string;
+  gameAppId: string | null;
+  gameIconUrl: string | null;
 }
 
-function UnlockRow({ unlock, gameName }: UnlockRowProps) {
+function UnlockRow({ unlock, gameName, gameAppId, gameIconUrl }: UnlockRowProps) {
   const rarity: AchievementRarity = rarityFromPercent(unlock.rarity);
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/60 transition-colors group">
-      {/* Icon placeholder */}
-      <div className="w-10 h-10 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xl flex-shrink-0 group-hover:border-indigo-500/40 transition-colors">
-        🏆
+      {/* Achievement icon or game thumbnail fallback */}
+      <div className="w-10 h-10 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xl flex-shrink-0 group-hover:border-indigo-500/40 transition-colors overflow-hidden">
+        {unlock.iconUrl ? (
+          <img src={unlock.iconUrl} alt="" className="w-full h-full object-cover" />
+        ) : gameAppId ? (
+          <img
+            src={gameIconUrl || steamHeaderUrl(gameAppId)}
+            alt=""
+            className="w-full h-full object-cover opacity-60"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <span className="text-amber-400 text-lg">*</span>
+        )}
       </div>
 
       {/* Info */}
@@ -167,8 +197,10 @@ export function Dashboard() {
   const totalPossible = games.reduce((sum, g) => sum + g.totalAchievements, 0);
   const completionPct = totalPossible > 0 ? Math.round((totalUnlocked / totalPossible) * 100) : 0;
 
-  // Build a lookup from gameId -> gameName for the recent unlocks feed
+  // Build lookups from gameId for the recent unlocks feed
   const gameNameMap = new Map(games.map((g) => [g.id, g.name]));
+  const gameAppIdMap = new Map(games.map((g) => [g.id, g.appId]));
+  const gameIconMap = new Map(games.map((g) => [g.id, g.iconUrl]));
 
   // Find rarest recent unlock
   const rarestUnlock = recentUnlocks.reduce<{ name: string; game: string; pct: number } | null>(
@@ -231,6 +263,8 @@ export function Dashboard() {
                 key={unlock.id}
                 unlock={unlock}
                 gameName={gameNameMap.get(unlock.gameId) ?? "Unknown"}
+                gameAppId={gameAppIdMap.get(unlock.gameId) ?? null}
+                gameIconUrl={gameIconMap.get(unlock.gameId) ?? null}
               />
             ))
           ) : (
@@ -261,7 +295,18 @@ export function Dashboard() {
                   : 0;
               return (
                 <div key={game.id} className="flex items-center gap-3">
-                  <span className="text-sm text-zinc-300 w-44 truncate">{game.name}</span>
+                  {/* Small game thumbnail */}
+                  <div className="w-8 h-8 rounded flex-shrink-0 overflow-hidden bg-zinc-800">
+                    <img
+                      src={game.iconUrl || steamHeaderUrl(game.appId)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                  <span className="text-sm text-zinc-300 w-40 truncate">{game.name}</span>
                   <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${

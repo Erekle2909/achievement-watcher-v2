@@ -34,6 +34,8 @@ export function achievementQueries(db: DB) {
               description: ach.description,
               iconUrl: ach.iconUrl,
               iconLockedUrl: ach.iconLockedUrl,
+              unlocked: ach.unlocked,
+              unlockTime: ach.unlockTime,
               rarity: ach.rarity,
               hidden: ach.hidden,
             },

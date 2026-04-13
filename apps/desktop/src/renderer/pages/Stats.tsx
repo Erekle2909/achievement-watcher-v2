@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { SOURCE_LABELS, SOURCE_COLORS, type AchievementSource } from "../lib/utils";
+import { SOURCE_COLORS, getSourceLabel, type AchievementSource } from "../lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types matching drizzle schema rows returned from IPC
@@ -295,11 +295,11 @@ export function Stats() {
               return (
                 <div key={source} className="flex items-center gap-3">
                   <span className="text-sm text-zinc-300 w-24 flex-shrink-0">
-                    {SOURCE_LABELS[srcKey]}
+                    {getSourceLabel(source)}
                   </span>
                   <div className="flex-1 bg-zinc-800 rounded-full h-3 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${SOURCE_COLORS[srcKey]}`}
+                      className={`h-full rounded-full ${SOURCE_COLORS[srcKey] || "bg-zinc-500"}`}
                       style={{ width: `${String(pct)}%` }}
                     />
                   </div>

@@ -1,10 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import {
-  getSourceBadge,
-  steamHeaderUrl,
-  SOURCE_LABELS,
-  type AchievementSource,
-} from "../lib/utils";
+import { getSourceBadge, getSourceLabel } from "../lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types matching drizzle schema rows returned from IPC
@@ -23,7 +18,7 @@ interface GameRow {
 }
 
 type SortKey = "name" | "completion" | "lastPlayed";
-type FilterSource = "all" | AchievementSource;
+type FilterSource = string;
 
 // ---------------------------------------------------------------------------
 // Game card
@@ -34,6 +29,15 @@ interface GameCardProps {
   onClick: () => void;
 }
 
+/** Image fallback URLs for a Steam appId, tried in order. */
+function headerFallbacks(appId: string): string[] {
+  return [
+    `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+    `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_616x353.jpg`,
+    `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+  ];
+}
+
 function GameCard({ game, onClick }: GameCardProps) {
   const pct =
     game.totalAchievements > 0
@@ -41,38 +45,54 @@ function GameCard({ game, onClick }: GameCardProps) {
       : 0;
 
   const isComplete = pct === 100;
-  const source = game.source as AchievementSource;
+
+  // Generate a deterministic gradient from appId for the last-resort fallback
+  const hue = Array.from(game.appId).reduce((h, c) => h + c.charCodeAt(0), 0) % 360;
 
   return (
     <button
       onClick={onClick}
       className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden hover:border-indigo-500/50 hover:scale-[1.02] transition-all text-left group cursor-pointer"
     >
-      {/* Art area — Steam header or gradient fallback */}
-      <div className="h-28 relative flex items-end p-3 bg-zinc-800">
+      {/* Art area with gradient fallback */}
+      <div
+        className="h-28 relative flex items-end p-3"
+        style={{
+          background: `linear-gradient(135deg, hsl(${String(hue)}, 40%, 18%) 0%, hsl(${String((hue + 40) % 360)}, 30%, 12%) 100%)`,
+        }}
+      >
         <img
-          src={game.iconUrl || steamHeaderUrl(game.appId)}
+          src={game.iconUrl || headerFallbacks(game.appId)[0]}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           onError={(e) => {
             const img = e.target as HTMLImageElement;
-            // Try Steam CDN as fallback if the DB iconUrl failed
-            if (!img.src.includes("cdn.akamai.steamstatic.com")) {
-              img.src = steamHeaderUrl(game.appId);
+            const fallbacks = headerFallbacks(game.appId);
+            const currentIdx = fallbacks.indexOf(img.src);
+            const nextIdx = currentIdx + 1;
+            if (nextIdx < fallbacks.length) {
+              img.src = fallbacks[nextIdx];
+            } else if (!fallbacks.includes(img.src)) {
+              // DB iconUrl failed, try the first CDN fallback
+              img.src = fallbacks[0];
             } else {
+              // All fallbacks exhausted -- hide image, gradient shows through
               img.style.display = "none";
             }
           }}
         />
+        {/* Gradient overlay so text is always readable over the image */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
         {isComplete && (
           <span className="absolute top-2 right-2 bg-green-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
             COMPLETE
           </span>
         )}
         <span
-          className={`relative z-10 text-xs font-semibold px-2 py-0.5 rounded-full ${getSourceBadge(source)}`}
+          className={`relative z-10 text-xs font-semibold px-2 py-0.5 rounded-full ${getSourceBadge(game.source)}`}
         >
-          {SOURCE_LABELS[source]}
+          {getSourceLabel(game.source)}
         </span>
       </div>
 
@@ -207,17 +227,18 @@ export function Library({ onGameSelect }: LibraryProps) {
           />
         </div>
 
-        {/* Source filter */}
+        {/* Source filter — derive unique sources from the actual games data */}
         <select
           value={filter}
           onChange={(e) => {
-            setFilter(e.target.value as FilterSource);
+            setFilter(e.target.value);
           }}
           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
         >
-          {(Object.keys(SOURCE_LABELS) as FilterSource[]).map((key) => (
-            <option key={key} value={key}>
-              {SOURCE_LABELS[key]}
+          <option value="all">All Sources</option>
+          {[...new Set(games.map((g) => g.source))].sort().map((src) => (
+            <option key={src} value={src}>
+              {getSourceLabel(src)}
             </option>
           ))}
         </select>

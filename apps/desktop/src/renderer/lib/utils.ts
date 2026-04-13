@@ -1,7 +1,7 @@
 // UI utility helpers — rarity colors, source badges, time formatting
 // Extracted from mock-data.ts so pages can use them without importing mocks.
 
-export type AchievementSource = "steam" | "goldberg" | "codex" | "skidrow" | "rld";
+export type AchievementSource = "native" | "steam-emu" | "ubisoft-emu" | "emulator";
 export type AchievementRarity = "common" | "uncommon" | "rare" | "very_rare" | "ultra_rare";
 
 export function getRarityColor(rarity: AchievementRarity): string {
@@ -49,18 +49,18 @@ export function getRarityLabel(rarity: AchievementRarity): string {
   }
 }
 
-export function getSourceBadge(source: AchievementSource): string {
+export function getSourceBadge(source: string): string {
   switch (source) {
-    case "steam":
+    case "native":
       return "bg-sky-900/60 text-sky-300";
-    case "goldberg":
+    case "steam-emu":
       return "bg-indigo-900/60 text-indigo-300";
-    case "codex":
-      return "bg-rose-900/60 text-rose-300";
-    case "skidrow":
+    case "ubisoft-emu":
       return "bg-orange-900/60 text-orange-300";
-    case "rld":
+    case "emulator":
       return "bg-teal-900/60 text-teal-300";
+    default:
+      return "bg-zinc-700/60 text-zinc-300";
   }
 }
 
@@ -90,22 +90,30 @@ export function rarityFromPercent(pct: number | null | undefined): AchievementRa
   return "ultra_rare";
 }
 
-export const SOURCE_LABELS: Record<AchievementSource | "all", string> = {
+export const SOURCE_LABELS: Record<string, string> = {
   all: "All Sources",
-  steam: "Steam",
-  goldberg: "Goldberg",
-  codex: "Codex",
-  skidrow: "SKIDROW",
-  rld: "RLD",
+  native: "Steam",
+  "steam-emu": "Steam Emu",
+  "ubisoft-emu": "Ubisoft Emu",
+  emulator: "Emulator",
 };
 
-export const SOURCE_COLORS: Record<AchievementSource, string> = {
-  steam: "bg-sky-500",
-  goldberg: "bg-indigo-500",
-  codex: "bg-rose-500",
-  skidrow: "bg-orange-500",
-  rld: "bg-teal-500",
+export const SOURCE_COLORS: Record<string, string> = {
+  native: "bg-sky-500",
+  "steam-emu": "bg-indigo-500",
+  "ubisoft-emu": "bg-orange-500",
+  emulator: "bg-teal-500",
 };
+
+/**
+ * Safely get a display label for any source string.
+ * Falls back to title-casing the raw source if not in the lookup.
+ */
+export function getSourceLabel(source: string): string {
+  return (
+    SOURCE_LABELS[source] ?? source.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
 
 /**
  * Build a Steam CDN header image URL from an appId.

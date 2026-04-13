@@ -5,8 +5,13 @@ export function getSteamHeaderUrl(appId: string): string {
   return `${STEAM_CDN}/steam/apps/${appId}/header.jpg`;
 }
 
-export function getSteamAchievementIconUrl(appId: string, iconHash: string): string {
-  return `${STEAM_CDN}/steamcommunity/public/images/apps/${appId}/${iconHash}.jpg`;
+export function getSteamAchievementIconUrl(appId: string, iconHashOrUrl: string): string {
+  // The Steam API sometimes returns the full URL instead of just a hash.
+  // If we already have a complete URL, return it as-is.
+  if (iconHashOrUrl.startsWith("http://") || iconHashOrUrl.startsWith("https://")) {
+    return iconHashOrUrl;
+  }
+  return `${STEAM_CDN}/steamcommunity/public/images/apps/${appId}/${iconHashOrUrl}.jpg`;
 }
 
 export function buildSteamApiUrl(
