@@ -1,38 +1,39 @@
+import { useState, useEffect } from "react";
 import {
-  mockGames,
-  mockRecentUnlocks,
-  mockAchievements,
   getRarityBg,
   getRarityLabel,
   getRarityColor,
   formatRelativeTime,
-} from "../mock-data";
+  rarityFromPercent,
+  type AchievementRarity,
+} from "../lib/utils";
 
 // ---------------------------------------------------------------------------
-// Derived stats
+// Types matching drizzle schema rows returned from IPC
 // ---------------------------------------------------------------------------
 
-const totalGames = mockGames.length;
-const totalUnlocked = mockGames.reduce((sum, g) => sum + g.unlockedAchievements, 0);
-const totalPossible = mockGames.reduce((sum, g) => sum + g.totalAchievements, 0);
-const completionPct = totalPossible > 0 ? Math.round((totalUnlocked / totalPossible) * 100) : 0;
+interface GameRow {
+  id: string;
+  appId: string;
+  name: string;
+  source: string;
+  totalAchievements: number;
+  unlockedAchievements: number;
+  lastPlayed: number | null;
+  playtime: number;
+}
 
-// Find rarest unlocked achievement across all games
-const rarestAchievement = (() => {
-  let rarest: { name: string; game: string; pct: number } | null = null;
-  for (const [gameId, achs] of Object.entries(mockAchievements)) {
-    const game = mockGames.find((g) => g.id === gameId);
-    if (!game) continue;
-    for (const ach of achs) {
-      if (ach.unlocked) {
-        if (!rarest || ach.rarityPercent < rarest.pct) {
-          rarest = { name: ach.name, game: game.name, pct: ach.rarityPercent };
-        }
-      }
-    }
-  }
-  return rarest;
-})();
+interface RecentUnlockRow {
+  id: string;
+  gameId: string;
+  achievementId: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  unlockTime: number | null;
+  rarity: number | null;
+  hidden: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Stat card
@@ -59,7 +60,14 @@ function StatCard({ label, value, sub, accentClass = "text-zinc-100" }: StatCard
 // Recent unlock row
 // ---------------------------------------------------------------------------
 
-function UnlockRow({ unlock }: { unlock: (typeof mockRecentUnlocks)[0] }) {
+interface UnlockRowProps {
+  unlock: RecentUnlockRow;
+  gameName: string;
+}
+
+function UnlockRow({ unlock, gameName }: UnlockRowProps) {
+  const rarity: AchievementRarity = rarityFromPercent(unlock.rarity);
+
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/60 transition-colors group">
       {/* Icon placeholder */}
@@ -69,18 +77,20 @@ function UnlockRow({ unlock }: { unlock: (typeof mockRecentUnlocks)[0] }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-zinc-100 truncate">{unlock.achievementName}</p>
-        <p className="text-xs text-zinc-500 truncate">{unlock.gameName}</p>
+        <p className="text-sm font-medium text-zinc-100 truncate">{unlock.name}</p>
+        <p className="text-xs text-zinc-500 truncate">{gameName}</p>
       </div>
 
       {/* Rarity + time */}
       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${getRarityBg(unlock.rarity)}`}
-        >
-          {getRarityLabel(unlock.rarity)}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getRarityBg(rarity)}`}>
+          {getRarityLabel(rarity)}
         </span>
-        <span className="text-xs text-zinc-600">{formatRelativeTime(unlock.unlockedAt)}</span>
+        {unlock.unlockTime && (
+          <span className="text-xs text-zinc-600">
+            {formatRelativeTime(unlock.unlockTime * 1000)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -91,6 +101,87 @@ function UnlockRow({ unlock }: { unlock: (typeof mockRecentUnlocks)[0] }) {
 // ---------------------------------------------------------------------------
 
 export function Dashboard() {
+  const [games, setGames] = useState<GameRow[]>([]);
+  const [recentUnlocks, setRecentUnlocks] = useState<RecentUnlockRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const api = window.electronAPI;
+      if (!api) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [gamesData, recentData] = await Promise.all([
+          api.getGames(),
+          api.getRecentUnlocks(15),
+        ]);
+        setGames(gamesData as GameRow[]);
+        setRecentUnlocks(recentData as RecentUnlockRow[]);
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-zinc-100">Dashboard</h2>
+          <p className="text-sm text-zinc-500 mt-1">Your achievement progress at a glance.</p>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <p className="text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (games.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-zinc-100">Dashboard</h2>
+          <p className="text-sm text-zinc-500 mt-1">Your achievement progress at a glance.</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <span className="text-4xl mb-3">🎮</span>
+          <p className="text-zinc-400 font-medium">No games found</p>
+          <p className="text-zinc-600 text-sm mt-1">
+            Make sure Steam is running and your API key is configured in Settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Derived stats
+  const totalGames = games.length;
+  const totalUnlocked = games.reduce((sum, g) => sum + g.unlockedAchievements, 0);
+  const totalPossible = games.reduce((sum, g) => sum + g.totalAchievements, 0);
+  const completionPct = totalPossible > 0 ? Math.round((totalUnlocked / totalPossible) * 100) : 0;
+
+  // Build a lookup from gameId -> gameName for the recent unlocks feed
+  const gameNameMap = new Map(games.map((g) => [g.id, g.name]));
+
+  // Find rarest recent unlock
+  const rarestUnlock = recentUnlocks.reduce<{ name: string; game: string; pct: number } | null>(
+    (best, u) => {
+      const pct = u.rarity ?? 100;
+      if (!best || pct < best.pct) {
+        return { name: u.name, game: gameNameMap.get(u.gameId) ?? "Unknown", pct };
+      }
+      return best;
+    },
+    null,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -121,10 +212,8 @@ export function Dashboard() {
         />
         <StatCard
           label="Rarest Unlock"
-          value={rarestAchievement ? `${String(rarestAchievement.pct)}%` : "—"}
-          sub={
-            rarestAchievement ? `${rarestAchievement.name} · ${rarestAchievement.game}` : undefined
-          }
+          value={rarestUnlock ? `${String(rarestUnlock.pct)}%` : "\u2014"}
+          sub={rarestUnlock ? `${rarestUnlock.name} \u00b7 ${rarestUnlock.game}` : undefined}
           accentClass="text-amber-400"
         />
       </div>
@@ -133,12 +222,20 @@ export function Dashboard() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg">
         <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-zinc-200">Recent Unlocks</h3>
-          <span className="text-xs text-zinc-600">{mockRecentUnlocks.length} shown</span>
+          <span className="text-xs text-zinc-600">{recentUnlocks.length} shown</span>
         </div>
         <div className="p-2 flex flex-col">
-          {mockRecentUnlocks.map((unlock) => (
-            <UnlockRow key={unlock.id} unlock={unlock} />
-          ))}
+          {recentUnlocks.length > 0 ? (
+            recentUnlocks.map((unlock) => (
+              <UnlockRow
+                key={unlock.id}
+                unlock={unlock}
+                gameName={gameNameMap.get(unlock.gameId) ?? "Unknown"}
+              />
+            ))
+          ) : (
+            <p className="text-sm text-zinc-500 p-3">No recent unlocks yet.</p>
+          )}
         </div>
       </div>
 
@@ -148,7 +245,7 @@ export function Dashboard() {
           <h3 className="text-sm font-semibold text-zinc-200">Top Games by Completion</h3>
         </div>
         <div className="p-4 flex flex-col gap-3">
-          {[...mockGames]
+          {[...games]
             .sort((a, b) => {
               const pctA =
                 a.totalAchievements > 0 ? a.unlockedAchievements / a.totalAchievements : 0;
