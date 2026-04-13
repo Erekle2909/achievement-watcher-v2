@@ -115,6 +115,13 @@ export function Stats() {
       }
     }
     void loadData();
+
+    const api = window.electronAPI;
+    if (api) {
+      api.onScanComplete(() => {
+        void loadData();
+      });
+    }
   }, []);
 
   // Derived stats (memoised)

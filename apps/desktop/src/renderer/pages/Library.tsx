@@ -166,6 +166,14 @@ export function Library({ onGameSelect }: LibraryProps) {
       }
     }
     void loadData();
+
+    // Re-fetch when scan completes (enrichment updates achievement icons/names)
+    const api = window.electronAPI;
+    if (api) {
+      api.onScanComplete(() => {
+        void loadData();
+      });
+    }
   }, []);
 
   const filtered = useMemo(() => {

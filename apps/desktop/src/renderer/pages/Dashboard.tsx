@@ -157,6 +157,13 @@ export function Dashboard() {
       }
     }
     void loadData();
+
+    const api = window.electronAPI;
+    if (api) {
+      api.onScanComplete(() => {
+        void loadData();
+      });
+    }
   }, []);
 
   if (loading) {
