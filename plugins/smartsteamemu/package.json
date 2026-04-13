@@ -1,0 +1,22 @@
+{
+  "name": "@achievement-watcher/plugin-smartsteamemu",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@achievement-watcher/core": "workspace:*",
+    "@achievement-watcher/shared": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "crc": "^4.3.2"
+  }
+}

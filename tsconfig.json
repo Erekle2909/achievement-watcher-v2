@@ -16,6 +16,8 @@
     { "path": "plugins/uplay-r1" },
     { "path": "plugins/uplay-r2" },
     { "path": "plugins/creamapi" },
-    { "path": "plugins/retroarch" }
+    { "path": "plugins/retroarch" },
+    { "path": "plugins/smartsteamemu" },
+    { "path": "plugins/greenluma" }
   ]
 }

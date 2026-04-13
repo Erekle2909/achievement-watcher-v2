@@ -272,6 +272,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
 
+  plugins/smartsteamemu:
+    dependencies:
+      "@achievement-watcher/core":
+        specifier: workspace:*
+        version: link:../../packages/core
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
+      crc:
+        specifier: ^4.3.2
+        version: 4.3.2
+
   plugins/steam:
     dependencies:
       "@achievement-watcher/shared":
