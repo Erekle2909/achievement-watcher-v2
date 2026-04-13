@@ -243,6 +243,16 @@ importers:
         specifier: ^22.0.0
         version: 22.19.17
 
+  plugins/greenluma:
+    dependencies:
+      "@achievement-watcher/shared":
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      "@types/node":
+        specifier: ^22.0.0
+        version: 22.19.17
+
   plugins/retroarch:
     dependencies:
       "@achievement-watcher/shared":
