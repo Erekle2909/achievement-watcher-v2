@@ -9,7 +9,7 @@ import { empressPlugin } from "@achievement-watcher/plugin-empress";
 import { skidrowPlugin } from "@achievement-watcher/plugin-skidrow";
 import { ali213Plugin } from "@achievement-watcher/plugin-ali213";
 import { creamApiPlugin } from "@achievement-watcher/plugin-creamapi";
-import { steamPlugin } from "@achievement-watcher/plugin-steam";
+import { steamPlugin, configureSteamPlugin } from "@achievement-watcher/plugin-steam";
 import { retroArchPlugin } from "@achievement-watcher/plugin-retroarch";
 import { rpcs3Plugin } from "@achievement-watcher/plugin-rpcs3";
 import { uplayR1Plugin } from "@achievement-watcher/plugin-uplay-r1";
@@ -30,6 +30,12 @@ initializeDatabase(db.raw);
 
 // ── Settings queries ──────────────────────────────────────────────
 const sq = settingsQueries(db.drizzle);
+
+// ── Configure Steam plugin with API key from settings ────────────
+const savedApiKey = sq.get("steamApiKey");
+if (savedApiKey) {
+  configureSteamPlugin({ apiKey: savedApiKey });
+}
 
 // ── Plugin registry ───────────────────────────────────────────────
 const registry = createPluginRegistry();
