@@ -57,5 +57,18 @@ export function achievementQueries(db: DB) {
         .limit(limit)
         .all();
     },
+    updateMetadata(
+      id: string,
+      name: string,
+      description: string,
+      iconUrl?: string,
+      iconLockedUrl?: string,
+    ) {
+      return db
+        .update(achievements)
+        .set({ name, description, iconUrl, iconLockedUrl })
+        .where(eq(achievements.id, id))
+        .run();
+    },
   };
 }

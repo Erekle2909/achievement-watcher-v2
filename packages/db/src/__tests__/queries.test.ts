@@ -243,6 +243,53 @@ describe("Achievement queries", () => {
     expect(recent[1]?.id).toBe("ach-3");
     expect(recent[2]?.id).toBe("ach-1");
   });
+
+  it("updateMetadata updates name, description, and icon URLs", () => {
+    const gq = gameQueries(conn.drizzle);
+    const aq = achievementQueries(conn.drizzle);
+    gq.upsert({ id: "game-1", appId: "100", name: "Game", source: "steam", installPath: "/g" });
+    aq.upsertMany("game-1", [
+      {
+        id: "ach-1",
+        gameId: "game-1",
+        achievementId: "ACH_RAW",
+        name: "ACH_RAW",
+        description: "",
+      },
+    ]);
+    aq.updateMetadata(
+      "ach-1",
+      "First Blood",
+      "Kill your first enemy",
+      "blood.jpg",
+      "blood_gray.jpg",
+    );
+    const achs = aq.getByGameId("game-1");
+    expect(achs[0]?.name).toBe("First Blood");
+    expect(achs[0]?.description).toBe("Kill your first enemy");
+    expect(achs[0]?.iconUrl).toBe("blood.jpg");
+    expect(achs[0]?.iconLockedUrl).toBe("blood_gray.jpg");
+  });
+
+  it("updateMetadata with no icons leaves them undefined", () => {
+    const gq = gameQueries(conn.drizzle);
+    const aq = achievementQueries(conn.drizzle);
+    gq.upsert({ id: "game-1", appId: "100", name: "Game", source: "steam", installPath: "/g" });
+    aq.upsertMany("game-1", [
+      {
+        id: "ach-1",
+        gameId: "game-1",
+        achievementId: "ACH_RAW",
+        name: "ACH_RAW",
+        description: "",
+        iconUrl: "old.jpg",
+      },
+    ]);
+    aq.updateMetadata("ach-1", "New Name", "New Desc");
+    const achs = aq.getByGameId("game-1");
+    expect(achs[0]?.name).toBe("New Name");
+    expect(achs[0]?.description).toBe("New Desc");
+  });
 });
 
 describe("Session queries", () => {
