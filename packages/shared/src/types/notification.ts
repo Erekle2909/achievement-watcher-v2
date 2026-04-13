@@ -9,4 +9,6 @@ export interface NotificationConfig {
   webhookUrl?: string;
   /** Duration in ms for overlay popup */
   overlayDuration: number;
+  /** Directory to save achievement screenshots */
+  screenshotDir?: string;
 }

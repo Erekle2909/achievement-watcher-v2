@@ -1,7 +1,10 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { Achievement, GameEntry, NotificationConfig } from "@achievement-watcher/shared";
 import { sendToast } from "./toast.js";
 import { playSound } from "./sound.js";
 import { sendWebhook } from "./webhook.js";
+import { captureScreenshot } from "./screenshot.js";
 
 export interface NotificationPayload {
   game: GameEntry;
@@ -22,7 +25,11 @@ export function createNotificationManager(): NotificationManager {
       if (config.enabled.sound) tasks.push(playSound(config.customSoundPath));
       if (config.enabled.webhook && config.webhookUrl)
         tasks.push(sendWebhook(payload, config.webhookUrl));
-      // overlay and screenshot are Electron-dependent, stubbed for now
+      if (config.enabled.screenshot) {
+        const saveDir =
+          config.screenshotDir ?? join(homedir(), ".achievement-watcher", "screenshots");
+        tasks.push(captureScreenshot(saveDir).then(() => undefined));
+      }
 
       await Promise.allSettled(tasks);
     },
