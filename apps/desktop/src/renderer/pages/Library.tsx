@@ -15,6 +15,7 @@ interface GameRow {
   appId: string;
   name: string;
   source: string;
+  iconUrl: string | null;
   totalAchievements: number;
   unlockedAchievements: number;
   lastPlayed: number | null;
@@ -50,11 +51,17 @@ function GameCard({ game, onClick }: GameCardProps) {
       {/* Art area — Steam header or gradient fallback */}
       <div className="h-28 relative flex items-end p-3 bg-zinc-800">
         <img
-          src={steamHeaderUrl(game.appId)}
+          src={game.iconUrl || steamHeaderUrl(game.appId)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
+            const img = e.target as HTMLImageElement;
+            // Try Steam CDN as fallback if the DB iconUrl failed
+            if (!img.src.includes("cdn.akamai.steamstatic.com")) {
+              img.src = steamHeaderUrl(game.appId);
+            } else {
+              img.style.display = "none";
+            }
           }}
         />
         {isComplete && (
@@ -96,7 +103,7 @@ function GameCard({ game, onClick }: GameCardProps) {
         </div>
 
         {/* Playtime */}
-        <p className="text-xs text-zinc-600">{Math.round(game.playtime)}h played</p>
+        <p className="text-xs text-zinc-600">{Math.round(game.playtime / 3600)}h played</p>
       </div>
     </button>
   );

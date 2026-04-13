@@ -1,3 +1,37 @@
+export interface SteamOwnedGame {
+  appid: number;
+  name: string;
+  playtime_forever: number; // minutes
+  img_icon_url: string;
+}
+
+interface GetOwnedGamesResponse {
+  response: {
+    game_count: number;
+    games: SteamOwnedGame[];
+  };
+}
+
+/**
+ * Fetch ALL games owned by a Steam user via IPlayerService/GetOwnedGames.
+ * Returns the full library — not just installed games.
+ */
+export async function fetchOwnedGames(apiKey: string, steamId: string): Promise<SteamOwnedGame[]> {
+  const url =
+    `http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/` +
+    `?key=${apiKey}&steamid=${steamId}&format=json&include_appinfo=1&include_played_free_games=1`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const json = (await response.json()) as GetOwnedGamesResponse;
+    return json.response.games;
+  } catch {
+    return [];
+  }
+}
+
 export interface SteamPlayerAchievement {
   apiname: string;
   /** 0 = locked, 1 = unlocked */

@@ -25,6 +25,8 @@ export default defineConfig({
     "@achievement-watcher/plugin-rpcs3",
     "@achievement-watcher/plugin-uplay-r1",
     "@achievement-watcher/plugin-uplay-r2",
+    "@achievement-watcher/plugin-smartsteamemu",
+    "@achievement-watcher/plugin-greenluma",
   ],
   clean: true,
   sourcemap: true,

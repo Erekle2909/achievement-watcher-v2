@@ -9,7 +9,11 @@ import { empressPlugin } from "@achievement-watcher/plugin-empress";
 import { skidrowPlugin } from "@achievement-watcher/plugin-skidrow";
 import { ali213Plugin } from "@achievement-watcher/plugin-ali213";
 import { creamApiPlugin } from "@achievement-watcher/plugin-creamapi";
-import { steamPlugin, configureSteamPlugin } from "@achievement-watcher/plugin-steam";
+import {
+  steamPlugin,
+  configureSteamPlugin,
+  prefetchSteamLibrary,
+} from "@achievement-watcher/plugin-steam";
 import { retroArchPlugin } from "@achievement-watcher/plugin-retroarch";
 import { rpcs3Plugin } from "@achievement-watcher/plugin-rpcs3";
 import { uplayR1Plugin } from "@achievement-watcher/plugin-uplay-r1";
@@ -32,10 +36,8 @@ initializeDatabase(db.raw);
 const sq = settingsQueries(db.drizzle);
 
 // ── Configure Steam plugin with API key from settings ────────────
-const savedApiKey = sq.get("steamApiKey");
-if (savedApiKey) {
-  configureSteamPlugin({ apiKey: savedApiKey });
-}
+const savedApiKey = sq.get("steamApiKey") || "77C5BF4CBF37212536D91A6E42D5D986";
+configureSteamPlugin({ apiKey: savedApiKey });
 
 // ── Plugin registry ───────────────────────────────────────────────
 const registry = createPluginRegistry();
@@ -54,7 +56,7 @@ registry.register(smartSteamEmuPlugin);
 registry.register(greenlumaPlugin);
 
 // ── Engine ────────────────────────────────────────────────────────
-const engine = createAchievementEngine({ registry, db });
+const engine = createAchievementEngine({ registry, db, steamApiKey: savedApiKey });
 
 // ── IPC handlers (use real DB + engine) ───────────────────────────
 registerIpcHandlers(db, engine, registry);
@@ -129,6 +131,9 @@ void app.whenReady().then(async () => {
   createWindow();
 
   try {
+    // Pre-fetch Steam library before scan so detectPaths() has the full game list
+    const steamGameCount = await prefetchSteamLibrary();
+    console.log(`[steam] Found ${String(steamGameCount)} owned games via API`);
     await engine.start();
   } catch (err) {
     console.error("[engine] Failed to start:", err);

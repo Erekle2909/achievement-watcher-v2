@@ -259,7 +259,9 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
               >
                 {SOURCE_LABELS[source]}
               </span>
-              <span className="text-xs text-zinc-400">{Math.round(game.playtime)}h playtime</span>
+              <span className="text-xs text-zinc-400">
+                {Math.round(game.playtime / 3600)}h playtime
+              </span>
               {game.lastPlayed && (
                 <span className="text-xs text-zinc-500">
                   Last played {new Date(game.lastPlayed).toLocaleDateString()}

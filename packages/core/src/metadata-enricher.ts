@@ -28,13 +28,17 @@ export function createMetadataEnricher(cache: MetadataCache, apiKey: string): Me
 
       if (!schema?.availableGameStats?.achievements) return;
 
-      // Update game name + header icon if it's still using the raw appId as name
+      // Update game header icon. Only update name if the current name
+      // is still just the raw appId — the GetOwnedGames API usually
+      // provides better names than GetSchemaForGame (which sometimes
+      // returns internal names like "game_EN" or "Oak").
       const gq = gameQueries(db);
       const existing = gq.getById(gameId);
-      if (existing && schema.gameName && existing.name === existing.appId) {
+      if (existing) {
+        const shouldUpdateName = existing.name === existing.appId && schema.gameName;
         gq.upsert({
           ...existing,
-          name: schema.gameName,
+          name: shouldUpdateName ? schema.gameName : existing.name,
           iconUrl: getSteamHeaderUrl(appId),
         });
       }

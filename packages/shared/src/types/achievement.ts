@@ -14,6 +14,8 @@ export interface ParsedGame {
   appId: string;
   name: string;
   achievements: Achievement[];
+  iconUrl?: string;
+  playtime?: number;
 }
 
 export type ParseResult<T> =

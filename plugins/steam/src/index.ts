@@ -1,19 +1,31 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import type {
   AchievementPlugin,
   ParseResult,
   ParsedGame,
   Achievement,
 } from "@achievement-watcher/shared";
-import { getSteamInstallPath } from "./paths.js";
 import { getSteamUserId } from "./steam-user.js";
-import { getInstalledSteamGames } from "./game-discovery.js";
-import { fetchPlayerAchievements } from "./api.js";
+import { fetchPlayerAchievements, fetchOwnedGames, type SteamOwnedGame } from "./api.js";
+
+const STEAM_CDN = "https://cdn.akamai.steamstatic.com";
 
 // Module-level config — set via configureSteamPlugin() or env vars
 let configApiKey: string = "";
 let configSteamId: string | null = null;
+
+// Cache of owned games — fetched once per session
+let ownedGamesCache: SteamOwnedGame[] | null = null;
+
+async function getOwnedGames(): Promise<SteamOwnedGame[]> {
+  if (ownedGamesCache) return ownedGamesCache;
+
+  const key = configApiKey || process.env["STEAM_API_KEY"] || "";
+  const userId = configSteamId || getSteamUserId();
+  if (!key || !userId) return [];
+
+  ownedGamesCache = await fetchOwnedGames(key, userId);
+  return ownedGamesCache;
+}
 
 export const steamPlugin: AchievementPlugin = {
   id: "steam",
@@ -21,33 +33,33 @@ export const steamPlugin: AchievementPlugin = {
   source: "native",
 
   detectPaths() {
-    const steamPath = getSteamInstallPath();
-    if (!steamPath) return [];
-
-    // Return one path per installed game. Each path is
-    // <steamapps>/<appId> so the discovery service can iterate them
-    // directly (it falls back to treating base paths as game dirs
-    // when they have no subdirectories).
-    const games = getInstalledSteamGames();
-    return games.map((g) => join(steamPath, "steamapps", g.appId));
+    // Return one virtual path per owned Steam game.
+    // Discovery will call detectGame() on each, then parse().
+    // We use "steam://<appId>" as virtual paths since Steam games
+    // aren't local directories — they're API-fetched.
+    // NOTE: This is populated asynchronously on first call via ensureOwnedGames().
+    // For the synchronous detectPaths(), we return cached results or empty.
+    if (!ownedGamesCache) return ["steam://pending"];
+    return ownedGamesCache
+      .filter((g) => g.playtime_forever > 0)
+      .map((g) => `steam://${String(g.appid)}`);
   },
 
-  detectGame(dirPath: string): Promise<boolean> {
-    // The "directory" is steamapps/<appId> — extract the appId
-    const appId = dirPath.split(/[\\/]/).pop() ?? "";
-    if (!/^\d+$/.test(appId)) return Promise.resolve(false);
-
-    const steamPath = getSteamInstallPath();
-    if (!steamPath) return Promise.resolve(false);
-
-    const manifestPath = join(steamPath, "steamapps", `appmanifest_${appId}.acf`);
-    return Promise.resolve(existsSync(manifestPath));
+  async detectGame(dirPath: string): Promise<boolean> {
+    // Handle the "pending" sentinel — trigger the API fetch
+    if (dirPath === "steam://pending") {
+      await getOwnedGames();
+      return false;
+    }
+    const appId = dirPath.replace("steam://", "");
+    if (!/^\d+$/.test(appId)) return false;
+    const games = await getOwnedGames();
+    return games.some((g) => String(g.appid) === appId);
   },
 
   async parse(gamePath: string): Promise<ParseResult<ParsedGame>> {
-    const appId = gamePath.split(/[\\/]/).pop() ?? "";
+    const appId = gamePath.replace("steam://", "").split(/[\\/]/).pop() ?? "";
 
-    // Resolve API key: explicit config > environment variable
     const key = configApiKey || process.env["STEAM_API_KEY"] || "";
     if (!key) {
       return {
@@ -59,7 +71,6 @@ export const steamPlugin: AchievementPlugin = {
       };
     }
 
-    // Resolve Steam user ID: explicit config > VDF auto-detection
     const userId = configSteamId || getSteamUserId();
     if (!userId) {
       return {
@@ -72,7 +83,6 @@ export const steamPlugin: AchievementPlugin = {
       };
     }
 
-    // Fetch player achievements from the Steam Web API
     const playerAchs = await fetchPlayerAchievements(appId, key, userId);
     if (!playerAchs) {
       return {
@@ -84,13 +94,13 @@ export const steamPlugin: AchievementPlugin = {
       };
     }
 
-    // Look up the game name from the installed manifests
-    const games = getInstalledSteamGames();
-    const gameInfo = games.find((g) => g.appId === appId);
+    // Get game name from owned games cache
+    const games = await getOwnedGames();
+    const gameInfo = games.find((g) => String(g.appid) === appId);
 
     const achievements: Achievement[] = playerAchs.map((pa) => ({
       id: pa.apiname,
-      name: pa.apiname, // Will be enriched by the metadata service
+      name: pa.apiname,
       description: "",
       icon: "",
       unlocked: pa.achieved === 1,
@@ -103,13 +113,13 @@ export const steamPlugin: AchievementPlugin = {
         appId,
         name: gameInfo?.name ?? appId,
         achievements,
+        iconUrl: `${STEAM_CDN}/steam/apps/${appId}/header.jpg`,
+        playtime: gameInfo ? gameInfo.playtime_forever * 60 : 0, // API returns minutes, we store seconds
       },
     };
   },
 
   watchPatterns(_gamePath: string) {
-    // Steam achievements are fetched via the Web API — there are no
-    // local files to watch. The engine polls periodically via rescan.
     return [];
   },
 };
@@ -121,6 +131,15 @@ export const steamPlugin: AchievementPlugin = {
 export function configureSteamPlugin(config: { apiKey?: string; steamId?: string }) {
   if (config.apiKey !== undefined) configApiKey = config.apiKey;
   if (config.steamId !== undefined) configSteamId = config.steamId;
+}
+
+/**
+ * Pre-fetch owned games so detectPaths() returns the full library.
+ * Call this BEFORE engine.start() to ensure discovery finds all games.
+ */
+export async function prefetchSteamLibrary(): Promise<number> {
+  const games = await getOwnedGames();
+  return games.length;
 }
 
 export default steamPlugin;

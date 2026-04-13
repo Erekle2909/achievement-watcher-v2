@@ -79,7 +79,10 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
         const basePaths = plugin.detectPaths();
 
         for (const basePath of basePaths) {
-          const subdirs = listSubdirs(basePath);
+          // Virtual paths (e.g. steam://12345) are not filesystem directories.
+          // Treat them as direct game candidates — don't try to list subdirs.
+          const isVirtual = basePath.includes("://");
+          const subdirs = isVirtual ? [] : listSubdirs(basePath);
 
           // If the base path has no subdirectories, try treating the base path
           // itself as a game directory. This supports plugins like Steam where
@@ -115,18 +118,24 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
               continue;
             }
 
-            const { appId, name, achievements } = result.data;
+            const { appId, name, achievements, iconUrl, playtime } = result.data;
             const gameEntry = toGameEntry(plugin, appId, name, candidate);
 
-            // Upsert game into DB
+            // Upsert game into DB — include icon and playtime from plugin if available
             gq.upsert({
               id: gameEntry.id,
               appId: gameEntry.appId,
               name: gameEntry.name,
               source: gameEntry.source,
               installPath: gameEntry.installPath,
-              iconUrl: gameEntry.iconUrl,
+              iconUrl:
+                iconUrl ?? `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
             });
+
+            // Update playtime if the plugin provided it
+            if (playtime && playtime > 0) {
+              gq.updatePlaytime(gameEntry.id, playtime);
+            }
 
             // Upsert achievements — IDs use `{gameId}:{achievementId}`
             aq.upsertMany(
@@ -150,9 +159,11 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
             const unlockedCount = achievements.filter((a) => a.unlocked).length;
             gq.updateAchievementCounts(gameEntry.id, achievements.length, unlockedCount);
 
-            // Non-blocking enrichment — errors are swallowed so discovery always succeeds
+            // Blocking enrichment — wait for metadata so achievement names/icons are in DB
             if (enricher) {
-              enricher.enrichGame(appId, gameEntry.id, db).catch(() => {
+              try {
+                await enricher.enrichGame(appId, gameEntry.id, db);
+              } catch {
                 eventBus.emit("error", {
                   source: plugin.id,
                   code: "ENRICHMENT_ERROR",
@@ -160,7 +171,7 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
                   message: `Metadata enrichment failed for appId: ${appId}`,
                   context: { appId },
                 });
-              });
+              }
             }
 
             gamesFound++;
