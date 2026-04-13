@@ -62,6 +62,7 @@ export function createPlaytimeTracker(deps: PlaytimeTrackerDeps): PlaytimeTracke
 
         // Update total playtime
         const game = gq.getById(proc.gameId);
+
         if (game) {
           gq.updatePlaytime(proc.gameId, game.playtime + duration);
         }
