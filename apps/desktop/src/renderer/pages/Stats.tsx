@@ -1,76 +1,32 @@
-import {
-  mockGames,
-  mockRecentUnlocks,
-  mockAchievements,
-  type AchievementSource,
-} from "../mock-data";
+import { useState, useEffect, useMemo } from "react";
+import { SOURCE_LABELS, SOURCE_COLORS, type AchievementSource } from "../lib/utils";
 
 // ---------------------------------------------------------------------------
-// Derived stats
+// Types matching drizzle schema rows returned from IPC
 // ---------------------------------------------------------------------------
 
-const totalUnlocked = mockGames.reduce((s, g) => s + g.unlockedAchievements, 0);
-const totalPossible = mockGames.reduce((s, g) => s + g.totalAchievements, 0);
-const completionPct = totalPossible > 0 ? Math.round((totalUnlocked / totalPossible) * 100) : 0;
-
-// Achievement score: sum points of unlocked achievements in mock data (weighted by rarity)
-const achievementScore = Object.values(mockAchievements)
-  .flat()
-  .filter((a) => a.unlocked)
-  .reduce((s, a) => s + a.points, 0);
-
-// Source breakdown
-const sourceBreakdown: Record<AchievementSource, { unlocked: number; total: number }> = {
-  steam: { unlocked: 0, total: 0 },
-  goldberg: { unlocked: 0, total: 0 },
-  codex: { unlocked: 0, total: 0 },
-  skidrow: { unlocked: 0, total: 0 },
-  rld: { unlocked: 0, total: 0 },
-};
-for (const g of mockGames) {
-  sourceBreakdown[g.source].unlocked += g.unlockedAchievements;
-  sourceBreakdown[g.source].total += g.totalAchievements;
+interface GameRow {
+  id: string;
+  appId: string;
+  name: string;
+  source: string;
+  totalAchievements: number;
+  unlockedAchievements: number;
+  lastPlayed: number | null;
+  playtime: number;
 }
 
-// Top 5 games by completion %
-const topGames = [...mockGames]
-  .filter((g) => g.totalAchievements > 0)
-  .map((g) => ({
-    ...g,
-    pct: Math.round((g.unlockedAchievements / g.totalAchievements) * 100),
-  }))
-  .sort((a, b) => b.pct - a.pct)
-  .slice(0, 5);
-
-// Last 7 days activity: count unlocks per day
-const today = new Date("2026-04-13T00:00:00Z");
-const days: { label: string; count: number }[] = [];
-for (let i = 6; i >= 0; i--) {
-  const d = new Date(today);
-  d.setUTCDate(d.getUTCDate() - i);
-  const label = d.toLocaleDateString(undefined, { weekday: "short" });
-  const dateStr = d.toISOString().slice(0, 10);
-  const count = mockRecentUnlocks.filter((u) => u.unlockedAt.startsWith(dateStr)).length;
-  days.push({ label, count });
+interface RecentUnlockRow {
+  id: string;
+  gameId: string;
+  achievementId: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  unlockTime: number | null;
+  rarity: number | null;
+  hidden: boolean;
 }
-const maxDayCount = Math.max(...days.map((d) => d.count), 1);
-
-// Source display names
-const SOURCE_LABELS: Record<AchievementSource, string> = {
-  steam: "Steam",
-  goldberg: "Goldberg",
-  codex: "Codex",
-  skidrow: "SKIDROW",
-  rld: "RLD",
-};
-
-const SOURCE_COLORS: Record<AchievementSource, string> = {
-  steam: "bg-sky-500",
-  goldberg: "bg-indigo-500",
-  codex: "bg-rose-500",
-  skidrow: "bg-orange-500",
-  rld: "bg-teal-500",
-};
 
 // ---------------------------------------------------------------------------
 // CSS-only progress ring
@@ -133,6 +89,125 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ---------------------------------------------------------------------------
 
 export function Stats() {
+  const [games, setGames] = useState<GameRow[]>([]);
+  const [recentUnlocks, setRecentUnlocks] = useState<RecentUnlockRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const api = window.electronAPI;
+      if (!api) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [gamesData, recentData] = await Promise.all([
+          api.getGames(),
+          api.getRecentUnlocks(100),
+        ]);
+        setGames(gamesData as GameRow[]);
+        setRecentUnlocks(recentData as RecentUnlockRow[]);
+      } catch (err) {
+        console.error("Failed to load stats data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadData();
+  }, []);
+
+  // Derived stats (memoised)
+  const stats = useMemo(() => {
+    const totalUnlocked = games.reduce((s, g) => s + g.unlockedAchievements, 0);
+    const totalPossible = games.reduce((s, g) => s + g.totalAchievements, 0);
+    const completionPct = totalPossible > 0 ? Math.round((totalUnlocked / totalPossible) * 100) : 0;
+
+    const perfectGames = games.filter(
+      (g) => g.unlockedAchievements === g.totalAchievements && g.totalAchievements > 0,
+    ).length;
+
+    // Source breakdown
+    const sourceBreakdown: Record<string, { unlocked: number; total: number }> = {};
+    for (const g of games) {
+      if (!sourceBreakdown[g.source]) {
+        sourceBreakdown[g.source] = { unlocked: 0, total: 0 };
+      }
+      sourceBreakdown[g.source].unlocked += g.unlockedAchievements;
+      sourceBreakdown[g.source].total += g.totalAchievements;
+    }
+
+    // Top 5 by completion
+    const topGames = [...games]
+      .filter((g) => g.totalAchievements > 0)
+      .map((g) => ({
+        ...g,
+        pct: Math.round((g.unlockedAchievements / g.totalAchievements) * 100),
+      }))
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 5);
+
+    // Last 7 days activity from recent unlocks
+    const now = Date.now();
+    const days: { label: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const label = d.toLocaleDateString(undefined, { weekday: "short" });
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 1000;
+      const dayEnd = dayStart + 86400;
+      const count = recentUnlocks.filter((u) => {
+        const t = u.unlockTime ?? 0;
+        return t >= dayStart && t < dayEnd;
+      }).length;
+      days.push({ label, count });
+    }
+    const maxDayCount = Math.max(...days.map((d) => d.count), 1);
+
+    return {
+      totalUnlocked,
+      totalPossible,
+      completionPct,
+      perfectGames,
+      sourceBreakdown,
+      topGames,
+      days,
+      maxDayCount,
+    };
+  }, [games, recentUnlocks]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-zinc-100">Stats & Analytics</h2>
+          <p className="text-sm text-zinc-500 mt-1">Deep dive into your achievement journey.</p>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <p className="text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (games.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-zinc-100">Stats & Analytics</h2>
+          <p className="text-sm text-zinc-500 mt-1">Deep dive into your achievement journey.</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <span className="text-4xl mb-3">🎮</span>
+          <p className="text-zinc-400 font-medium">No stats to show</p>
+          <p className="text-zinc-600 text-sm mt-1">
+            Make sure Steam is running and your API key is configured in Settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -146,26 +221,30 @@ export function Stats() {
         <Section title="Overall Completion">
           <div className="flex items-center gap-6">
             <div className="relative flex-shrink-0">
-              <ProgressRing pct={completionPct} size={120} strokeWidth={10} />
+              <ProgressRing pct={stats.completionPct} size={120} strokeWidth={10} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold text-zinc-100 tabular-nums">
-                  {completionPct}%
+                  {stats.completionPct}%
                 </span>
                 <span className="text-[10px] text-zinc-500">complete</span>
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <div>
-                <p className="text-3xl font-bold text-indigo-400 tabular-nums">{totalUnlocked}</p>
+                <p className="text-3xl font-bold text-indigo-400 tabular-nums">
+                  {stats.totalUnlocked}
+                </p>
                 <p className="text-xs text-zinc-500">achievements unlocked</p>
               </div>
               <div>
-                <p className="text-lg font-semibold text-zinc-400 tabular-nums">{totalPossible}</p>
+                <p className="text-lg font-semibold text-zinc-400 tabular-nums">
+                  {stats.totalPossible}
+                </p>
                 <p className="text-xs text-zinc-500">total possible</p>
               </div>
               <div>
                 <p className="text-lg font-semibold text-zinc-400 tabular-nums">
-                  {totalPossible - totalUnlocked}
+                  {stats.totalPossible - stats.totalUnlocked}
                 </p>
                 <p className="text-xs text-zinc-500">remaining</p>
               </div>
@@ -173,28 +252,31 @@ export function Stats() {
           </div>
         </Section>
 
-        {/* Achievement score */}
-        <Section title="Achievement Score">
+        {/* Summary stats */}
+        <Section title="Summary">
           <div className="flex flex-col gap-3 items-center justify-center h-full py-4">
-            <p className="text-6xl font-bold text-amber-400 tabular-nums">
-              {achievementScore.toLocaleString()}
-            </p>
-            <p className="text-sm text-zinc-500">total score points</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-2 text-center">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-center">
               <div>
-                <p className="text-lg font-bold text-zinc-300">
-                  {
-                    mockGames.filter(
-                      (g) =>
-                        g.unlockedAchievements === g.totalAchievements && g.totalAchievements > 0,
-                    ).length
-                  }
+                <p className="text-3xl font-bold text-amber-400 tabular-nums">
+                  {stats.perfectGames}
                 </p>
                 <p className="text-xs text-zinc-600">perfect games</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-zinc-300">{mockGames.length}</p>
+                <p className="text-3xl font-bold text-zinc-300 tabular-nums">{games.length}</p>
                 <p className="text-xs text-zinc-600">games tracked</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-indigo-400 tabular-nums">
+                  {stats.totalUnlocked}
+                </p>
+                <p className="text-xs text-zinc-600">total unlocks</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-zinc-300 tabular-nums">
+                  {Object.keys(stats.sourceBreakdown).length}
+                </p>
+                <p className="text-xs text-zinc-600">sources active</p>
               </div>
             </div>
           </div>
@@ -204,24 +286,20 @@ export function Stats() {
       {/* Source breakdown */}
       <Section title="Source Breakdown">
         <div className="flex flex-col gap-3">
-          {(
-            Object.entries(sourceBreakdown) as [
-              AchievementSource,
-              { unlocked: number; total: number },
-            ][]
-          )
+          {Object.entries(stats.sourceBreakdown)
             .filter(([, v]) => v.total > 0)
             .sort(([, a], [, b]) => b.total - a.total)
             .map(([source, { unlocked, total }]) => {
               const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+              const srcKey = source as AchievementSource;
               return (
                 <div key={source} className="flex items-center gap-3">
                   <span className="text-sm text-zinc-300 w-24 flex-shrink-0">
-                    {SOURCE_LABELS[source]}
+                    {SOURCE_LABELS[srcKey]}
                   </span>
                   <div className="flex-1 bg-zinc-800 rounded-full h-3 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${SOURCE_COLORS[source]}`}
+                      className={`h-full rounded-full ${SOURCE_COLORS[srcKey]}`}
                       style={{ width: `${String(pct)}%` }}
                     />
                   </div>
@@ -237,7 +315,7 @@ export function Stats() {
       {/* Top games */}
       <Section title="Top Games by Completion">
         <div className="flex flex-col gap-3">
-          {topGames.map((game, i) => (
+          {stats.topGames.map((game, i) => (
             <div key={game.id} className="flex items-center gap-3">
               <span className="text-sm text-zinc-600 w-4 flex-shrink-0 tabular-nums">{i + 1}</span>
               <span className="text-sm text-zinc-300 w-44 truncate flex-shrink-0">{game.name}</span>
@@ -257,11 +335,11 @@ export function Stats() {
         </div>
       </Section>
 
-      {/* Recent activity — last 7 days */}
-      <Section title="Recent Activity — Last 7 Days">
+      {/* Recent activity -- last 7 days */}
+      <Section title="Recent Activity \u2014 Last 7 Days">
         <div className="flex items-end gap-2 h-28">
-          {days.map((day, i) => {
-            const barPct = maxDayCount > 0 ? (day.count / maxDayCount) * 100 : 0;
+          {stats.days.map((day, i) => {
+            const barPct = stats.maxDayCount > 0 ? (day.count / stats.maxDayCount) * 100 : 0;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <span className="text-xs text-zinc-400 tabular-nums">{day.count || ""}</span>
@@ -271,7 +349,10 @@ export function Stats() {
                 >
                   <div
                     className="w-full bg-indigo-500 rounded-t transition-all"
-                    style={{ height: `${String(barPct)}%`, marginTop: `${String(100 - barPct)}%` }}
+                    style={{
+                      height: `${String(barPct)}%`,
+                      marginTop: `${String(100 - barPct)}%`,
+                    }}
                   />
                 </div>
                 <span className="text-[11px] text-zinc-500">{day.label}</span>
@@ -279,7 +360,7 @@ export function Stats() {
             );
           })}
         </div>
-        {days.every((d) => d.count === 0) && (
+        {stats.days.every((d) => d.count === 0) && (
           <p className="text-xs text-zinc-600 mt-2 text-center">No unlocks in the last 7 days.</p>
         )}
       </Section>
