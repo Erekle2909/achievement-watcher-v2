@@ -34,7 +34,9 @@ function headerFallbacks(appId: string): string[] {
   return [
     `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
     `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_616x353.jpg`,
+    `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`,
     `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`,
   ];
 }
 
@@ -65,22 +67,24 @@ function GameCard({ game, onClick }: GameCardProps) {
           src={game.iconUrl || headerFallbacks(game.appId)[0]}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          data-fallback-idx="0"
           onError={(e) => {
             const img = e.target as HTMLImageElement;
+            const idx = Number(img.dataset["fallbackIdx"] ?? "0");
             const fallbacks = headerFallbacks(game.appId);
-            const currentIdx = fallbacks.indexOf(img.src);
-            const nextIdx = currentIdx + 1;
-            if (nextIdx < fallbacks.length) {
-              img.src = fallbacks[nextIdx];
-            } else if (!fallbacks.includes(img.src)) {
-              // DB iconUrl failed, try the first CDN fallback
-              img.src = fallbacks[0];
+            const next = idx + 1;
+            if (next < fallbacks.length) {
+              img.dataset["fallbackIdx"] = String(next);
+              img.src = fallbacks[next];
             } else {
-              // All fallbacks exhausted -- hide image, gradient shows through
               img.style.display = "none";
             }
           }}
         />
+        {/* Game name shown when no image loads (over gradient) */}
+        <span className="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm font-semibold px-4 text-center pointer-events-none">
+          {game.name}
+        </span>
         {/* Gradient overlay so text is always readable over the image */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
