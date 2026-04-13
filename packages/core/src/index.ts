@@ -1,5 +1,6 @@
 export { createPluginRegistry, type PluginRegistry } from "./plugin-loader.js";
 export { parseSSEBinary, type SSEEntry } from "./sse-parser.js";
+export { matchSSEToSchema } from "./crc-matcher.js";
 export { parseAchievementIni } from "./ini-parser.js";
 export { parseJsonAchievementSave } from "./json-achievement-parser.js";
 export {
@@ -16,3 +17,10 @@ export { createWatcherService, type WatcherService, type WatcherDeps } from "./w
 export { createAchievementEngine, type AchievementEngine, type EngineDeps } from "./engine.js";
 export { createMetadataCache, type MetadataCache } from "./metadata-cache.js";
 export { createMetadataEnricher, type MetadataEnricher } from "./metadata-enricher.js";
+
+export {
+  createPlaytimeTracker,
+  getRunningProcesses,
+  type PlaytimeTracker,
+  type PlaytimeTrackerDeps,
+} from "./playtime.js";
