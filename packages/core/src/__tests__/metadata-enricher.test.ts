@@ -232,7 +232,7 @@ describe("MetadataEnricher", () => {
     const enricher = createMetadataEnricher(cache, "REAL_API_KEY");
     await enricher.enrichGame("730", "steam:730", conn.drizzle);
 
-    expect(fetchSpy).toHaveBeenCalledWith("730", "REAL_API_KEY", undefined);
+    expect(fetchSpy).toHaveBeenCalledWith("730", "REAL_API_KEY");
     // Schema is now cached
     expect(cache.get("730")).not.toBeNull();
   });
