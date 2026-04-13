@@ -1,7 +1,8 @@
 import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
-import { createDatabase, initializeDatabase } from "@achievement-watcher/db";
+import { createDatabase, initializeDatabase, settingsQueries } from "@achievement-watcher/db";
 import { createPluginRegistry, createAchievementEngine } from "@achievement-watcher/core";
+import { DEFAULT_SETTINGS } from "@achievement-watcher/shared";
 import { goldbergPlugin } from "@achievement-watcher/plugin-goldberg";
 import { codexPlugin } from "@achievement-watcher/plugin-codex";
 import { empressPlugin } from "@achievement-watcher/plugin-empress";
@@ -14,6 +15,7 @@ import { rpcs3Plugin } from "@achievement-watcher/plugin-rpcs3";
 import { uplayR1Plugin } from "@achievement-watcher/plugin-uplay-r1";
 import { uplayR2Plugin } from "@achievement-watcher/plugin-uplay-r2";
 import { registerIpcHandlers } from "./ipc-handlers.js";
+import { showOverlay } from "./overlay.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -23,6 +25,9 @@ const db = createDatabase(dbPath);
 
 // Create tables on first run (idempotent)
 initializeDatabase(db.raw);
+
+// ── Settings queries ──────────────────────────────────────────────
+const sq = settingsQueries(db.drizzle);
 
 // ── Plugin registry ───────────────────────────────────────────────
 const registry = createPluginRegistry();
@@ -82,6 +87,27 @@ function createWindow() {
 // ── Forward engine events to renderer ─────────────────────────────
 engine.eventBus.on("achievement:unlocked", (data) => {
   mainWindow?.webContents.send("achievement:unlocked", data);
+
+  // Read overlay settings from DB; fall back to defaults
+  const overlayEnabledRaw = sq.get("notifications.overlay");
+  const overlayEnabled =
+    overlayEnabledRaw !== undefined
+      ? overlayEnabledRaw === "true"
+      : DEFAULT_SETTINGS.notifications.enabled.overlay;
+
+  if (overlayEnabled) {
+    const durationRaw = sq.get("notifications.overlayDuration");
+    const duration =
+      durationRaw !== undefined
+        ? Number(durationRaw)
+        : DEFAULT_SETTINGS.notifications.overlayDuration;
+
+    showOverlay({
+      achievementName: data.achievement.name,
+      gameName: data.game.name,
+      duration,
+    });
+  }
 });
 
 engine.eventBus.on("scan:completed", (data) => {
