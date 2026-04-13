@@ -4,6 +4,7 @@ import type { AchievementPlugin, GameEntry } from "@achievement-watcher/shared";
 import type { PluginRegistry } from "./plugin-loader.js";
 import type { EngineEventBus } from "./event-bus.js";
 import { gameQueries, achievementQueries } from "@achievement-watcher/db";
+import type { MetadataEnricher } from "./metadata-enricher.js";
 
 type DB = Parameters<typeof gameQueries>[0];
 
@@ -16,6 +17,8 @@ export interface DiscoveryDeps {
   registry: PluginRegistry;
   db: DB;
   eventBus: EngineEventBus;
+  /** Optional — if provided, enriches each discovered game with Steam metadata. */
+  enricher?: MetadataEnricher;
 }
 
 /**
@@ -62,7 +65,7 @@ function toGameEntry(
 }
 
 export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
-  const { registry, db, eventBus } = deps;
+  const { registry, db, eventBus, enricher } = deps;
   const gq = gameQueries(db);
   const aq = achievementQueries(db);
 
@@ -141,6 +144,19 @@ export function createDiscoveryService(deps: DiscoveryDeps): DiscoveryService {
             // Update achievement counts
             const unlockedCount = achievements.filter((a) => a.unlocked).length;
             gq.updateAchievementCounts(gameEntry.id, achievements.length, unlockedCount);
+
+            // Non-blocking enrichment — errors are swallowed so discovery always succeeds
+            if (enricher) {
+              enricher.enrichGame(appId, gameEntry.id, db).catch(() => {
+                eventBus.emit("error", {
+                  source: plugin.id,
+                  code: "ENRICHMENT_ERROR",
+                  severity: "warn",
+                  message: `Metadata enrichment failed for appId: ${appId}`,
+                  context: { appId },
+                });
+              });
+            }
 
             gamesFound++;
             eventBus.emit("game:discovered", { game: gameEntry });
