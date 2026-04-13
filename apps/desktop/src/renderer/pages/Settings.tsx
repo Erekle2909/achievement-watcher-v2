@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DEFAULT_SETTINGS } from "@achievement-watcher/shared";
 
 // ---------------------------------------------------------------------------
@@ -165,9 +165,90 @@ function buildInitialState(): LocalSettings {
 
 export function Settings() {
   const [settings, setSettings] = useState<LocalSettings>(buildInitialState);
+  const [appVersion, setAppVersion] = useState("2.0.0");
   const [newScanPath, setNewScanPath] = useState("");
   const [showSteamKey, setShowSteamKey] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Load persisted settings from the IPC bridge on mount
+  useEffect(() => {
+    async function loadSettings() {
+      const api = window.electronAPI;
+      if (!api) return;
+      try {
+        const version = await api.getAppVersion();
+        if (version) setAppVersion(version);
+        const raw = (await api.getSettings()) as Record<string, string>;
+        setSettings((prev) => ({
+          ...prev,
+          steamApiKey: raw.steamApiKey ?? prev.steamApiKey,
+          rescanInterval: raw.rescanInterval ? Number(raw.rescanInterval) : prev.rescanInterval,
+          startMinimized:
+            raw.startMinimized === "true"
+              ? true
+              : raw.startMinimized === "false"
+                ? false
+                : prev.startMinimized,
+          startOnBoot:
+            raw.startOnBoot === "true"
+              ? true
+              : raw.startOnBoot === "false"
+                ? false
+                : prev.startOnBoot,
+          theme: raw.theme ? (raw.theme as ThemeMode) : prev.theme,
+          accentColor: raw.accentColor ? raw.accentColor : prev.accentColor,
+          enabledPlugins: raw.enabledPlugins
+            ? (JSON.parse(raw.enabledPlugins) as string[])
+            : prev.enabledPlugins,
+          scanPaths: raw.scanPaths ? (JSON.parse(raw.scanPaths) as string[]) : prev.scanPaths,
+          notifications: {
+            ...prev.notifications,
+            enabled: {
+              toast:
+                raw["notifications.toast"] === "true"
+                  ? true
+                  : raw["notifications.toast"] === "false"
+                    ? false
+                    : prev.notifications.enabled.toast,
+              overlay:
+                raw["notifications.overlay"] === "true"
+                  ? true
+                  : raw["notifications.overlay"] === "false"
+                    ? false
+                    : prev.notifications.enabled.overlay,
+              sound:
+                raw["notifications.sound"] === "true"
+                  ? true
+                  : raw["notifications.sound"] === "false"
+                    ? false
+                    : prev.notifications.enabled.sound,
+              screenshot:
+                raw["notifications.screenshot"] === "true"
+                  ? true
+                  : raw["notifications.screenshot"] === "false"
+                    ? false
+                    : prev.notifications.enabled.screenshot,
+              webhook:
+                raw["notifications.webhook"] === "true"
+                  ? true
+                  : raw["notifications.webhook"] === "false"
+                    ? false
+                    : prev.notifications.enabled.webhook,
+            },
+            customSoundPath:
+              raw["notifications.customSoundPath"] ?? prev.notifications.customSoundPath,
+            webhookUrl: raw["notifications.webhookUrl"] ?? prev.notifications.webhookUrl,
+            overlayDuration: raw["notifications.overlayDuration"]
+              ? Number(raw["notifications.overlayDuration"])
+              : prev.notifications.overlayDuration,
+          },
+        }));
+      } catch (err) {
+        console.error("Failed to load settings:", err);
+      }
+    }
+    void loadSettings();
+  }, []);
 
   // Helper: patch a top-level key
   function patch<K extends keyof LocalSettings>(key: K, value: LocalSettings[K]) {
@@ -223,8 +304,32 @@ export function Settings() {
     );
   }
 
-  function handleSave() {
-    // TODO: wire to window.electronAPI?.updateSettings(settings)
+  async function handleSave() {
+    const api = window.electronAPI;
+    if (api) {
+      try {
+        await api.updateSettings({
+          steamApiKey: settings.steamApiKey,
+          rescanInterval: String(settings.rescanInterval),
+          startMinimized: String(settings.startMinimized),
+          startOnBoot: String(settings.startOnBoot),
+          theme: settings.theme,
+          accentColor: settings.accentColor,
+          enabledPlugins: JSON.stringify(settings.enabledPlugins),
+          scanPaths: JSON.stringify(settings.scanPaths),
+          "notifications.toast": String(settings.notifications.enabled.toast),
+          "notifications.overlay": String(settings.notifications.enabled.overlay),
+          "notifications.sound": String(settings.notifications.enabled.sound),
+          "notifications.screenshot": String(settings.notifications.enabled.screenshot),
+          "notifications.webhook": String(settings.notifications.enabled.webhook),
+          "notifications.customSoundPath": settings.notifications.customSoundPath,
+          "notifications.webhookUrl": settings.notifications.webhookUrl,
+          "notifications.overlayDuration": String(settings.notifications.overlayDuration),
+        });
+      } catch (err) {
+        console.error("Failed to save settings:", err);
+      }
+    }
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
@@ -280,7 +385,9 @@ export function Settings() {
         </div>
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => {
+            void handleSave();
+          }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             saved ? "bg-green-600 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white"
           }`}
@@ -587,7 +694,7 @@ export function Settings() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-400">Version</span>
-            <span className="text-sm text-zinc-200 font-mono">2.0.0</span>
+            <span className="text-sm text-zinc-200 font-mono">{appVersion}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-400">GitHub</span>
