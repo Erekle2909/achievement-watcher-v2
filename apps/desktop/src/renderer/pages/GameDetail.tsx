@@ -1,22 +1,48 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
-  mockGames,
-  mockAchievements,
   getRarityBg,
   getRarityLabel,
   getRarityColor,
   getSourceBadge,
-  type MockAchievement,
+  rarityFromPercent,
+  steamHeaderUrl,
+  SOURCE_LABELS,
   type AchievementSource,
-} from "../mock-data";
+  type AchievementRarity,
+} from "../lib/utils";
 
-const SOURCE_LABELS: Record<AchievementSource, string> = {
-  steam: "Steam",
-  goldberg: "Goldberg",
-  codex: "Codex",
-  skidrow: "SKIDROW",
-  rld: "RLD",
-};
+// ---------------------------------------------------------------------------
+// Types matching drizzle schema rows returned from IPC
+// ---------------------------------------------------------------------------
+
+interface GameRow {
+  id: string;
+  appId: string;
+  name: string;
+  source: string;
+  totalAchievements: number;
+  unlockedAchievements: number;
+  lastPlayed: number | null;
+  playtime: number;
+}
+
+interface AchievementRow {
+  id: string;
+  gameId: string;
+  achievementId: string;
+  name: string;
+  description: string;
+  iconUrl: string | null;
+  iconLockedUrl: string | null;
+  unlocked: boolean;
+  unlockTime: number | null;
+  rarity: number | null;
+  hidden: boolean;
+}
+
+interface GameDetailsResponse extends GameRow {
+  achievements: AchievementRow[];
+}
 
 type AchFilter = "all" | "unlocked" | "locked";
 
@@ -24,8 +50,10 @@ type AchFilter = "all" | "unlocked" | "locked";
 // Achievement card
 // ---------------------------------------------------------------------------
 
-function AchievementCard({ ach }: { ach: MockAchievement }) {
+function AchievementCard({ ach }: { ach: AchievementRow }) {
   const isHiddenLocked = ach.hidden && !ach.unlocked;
+  const rarity: AchievementRarity = rarityFromPercent(ach.rarity);
+  const rarityPct = ach.rarity ?? 0;
 
   return (
     <div
@@ -37,11 +65,19 @@ function AchievementCard({ ach }: { ach: MockAchievement }) {
     >
       {/* Icon */}
       <div
-        className={`w-12 h-12 rounded-md flex items-center justify-center text-2xl flex-shrink-0 border ${
+        className={`w-12 h-12 rounded-md flex items-center justify-center text-2xl flex-shrink-0 border overflow-hidden ${
           ach.unlocked ? "bg-green-900/30 border-green-700/40" : "bg-zinc-800 border-zinc-700"
         }`}
       >
-        {ach.unlocked ? "✅" : isHiddenLocked ? "🔒" : "🔒"}
+        {ach.unlocked && ach.iconUrl ? (
+          <img src={ach.iconUrl} alt="" className="w-full h-full object-cover" />
+        ) : !ach.unlocked && ach.iconLockedUrl ? (
+          <img src={ach.iconLockedUrl} alt="" className="w-full h-full object-cover" />
+        ) : ach.unlocked ? (
+          "\u2705"
+        ) : (
+          "\uD83D\uDD12"
+        )}
       </div>
 
       {/* Body */}
@@ -53,34 +89,36 @@ function AchievementCard({ ach }: { ach: MockAchievement }) {
             {isHiddenLocked ? "???" : ach.name}
           </p>
           <span
-            className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${getRarityBg(ach.rarity)}`}
+            className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${getRarityBg(rarity)}`}
           >
-            {getRarityLabel(ach.rarity)}
+            {getRarityLabel(rarity)}
           </span>
         </div>
 
         <p className="text-xs text-zinc-500 leading-snug">
-          {isHiddenLocked ? "Hidden achievement — unlock to reveal description." : ach.description}
+          {isHiddenLocked
+            ? "Hidden achievement \u2014 unlock to reveal description."
+            : ach.description}
         </p>
 
         {/* Rarity bar */}
         <div className="flex items-center gap-2 mt-0.5">
           <div className="flex-1 bg-zinc-800 rounded-full h-1 overflow-hidden">
             <div
-              className={`h-full rounded-full ${getRarityColor(ach.rarity).replace("text-", "bg-")}`}
-              style={{ width: `${String(ach.rarityPercent)}%` }}
+              className={`h-full rounded-full ${getRarityColor(rarity).replace("text-", "bg-")}`}
+              style={{ width: `${String(rarityPct)}%` }}
             />
           </div>
-          <span className={`text-[11px] tabular-nums flex-shrink-0 ${getRarityColor(ach.rarity)}`}>
-            {ach.rarityPercent}% of players
+          <span className={`text-[11px] tabular-nums flex-shrink-0 ${getRarityColor(rarity)}`}>
+            {rarityPct}% of players
           </span>
         </div>
 
         {/* Unlocked timestamp */}
-        {ach.unlocked && ach.unlockedAt && (
+        {ach.unlocked && ach.unlockTime && (
           <p className="text-[11px] text-green-500">
             Unlocked{" "}
-            {new Date(ach.unlockedAt).toLocaleDateString(undefined, {
+            {new Date(ach.unlockTime * 1000).toLocaleDateString(undefined, {
               year: "numeric",
               month: "short",
               day: "numeric",
@@ -89,9 +127,6 @@ function AchievementCard({ ach }: { ach: MockAchievement }) {
             })}
           </p>
         )}
-
-        {/* Points */}
-        {!isHiddenLocked && <p className="text-[11px] text-zinc-600">{ach.points} pts</p>}
       </div>
     </div>
   );
@@ -107,11 +142,35 @@ interface GameDetailProps {
 }
 
 export function GameDetail({ gameId, onBack }: GameDetailProps) {
+  const [game, setGame] = useState<GameRow | null>(null);
+  const [achievements, setAchievements] = useState<AchievementRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [achFilter, setAchFilter] = useState<AchFilter>("all");
   const [search, setSearch] = useState("");
 
-  const game = mockGames.find((g) => g.id === gameId);
-  const achievements = mockAchievements[gameId] ?? [];
+  useEffect(() => {
+    async function loadData() {
+      const api = window.electronAPI;
+      if (!api) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const details = (await api.getGameDetails(gameId)) as GameDetailsResponse | null;
+        if (details) {
+          const { achievements: achs, ...gameData } = details;
+          setGame(gameData);
+          setAchievements(achs);
+        }
+      } catch (err) {
+        console.error("Failed to load game details:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadData();
+  }, [gameId]);
 
   const filtered = useMemo(() => {
     return achievements.filter((a) => {
@@ -127,28 +186,45 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
     });
   }, [achievements, achFilter, search]);
 
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors w-fit"
+        >
+          <span>\u2190</span>
+          <span>Back to Library</span>
+        </button>
+        <div className="flex items-center justify-center py-20">
+          <p className="text-zinc-400">Loading game details...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!game) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <span className="text-4xl">❓</span>
+        <span className="text-4xl">\u2753</span>
         <p className="text-zinc-400">Game not found.</p>
         <button
           onClick={onBack}
           className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
         >
-          ← Back to Library
+          \u2190 Back to Library
         </button>
       </div>
     );
   }
 
+  const source = game.source as AchievementSource;
   const pct =
     game.totalAchievements > 0
       ? Math.round((game.unlockedAchievements / game.totalAchievements) * 100)
       : 0;
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
-  const totalPoints = achievements.filter((a) => a.unlocked).reduce((s, a) => s + a.points, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,30 +233,38 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors w-fit"
       >
-        <span>←</span>
+        <span>\u2190</span>
         <span>Back to Library</span>
       </button>
 
       {/* Game header */}
-      <div
-        className="rounded-xl p-6 flex flex-col gap-4 border border-zinc-700/50"
-        style={{
-          background: `linear-gradient(135deg, ${game.gradientFrom}cc, ${game.gradientTo}44)`,
-        }}
-      >
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="rounded-xl p-6 flex flex-col gap-4 border border-zinc-700/50 relative overflow-hidden">
+        {/* Background image */}
+        <img
+          src={steamHeaderUrl(game.appId)}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-20"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/90 to-zinc-950/60" />
+
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-1.5">
             <h2 className="text-2xl font-bold text-zinc-100">{game.name}</h2>
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getSourceBadge(game.source)}`}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getSourceBadge(source)}`}
               >
-                {SOURCE_LABELS[game.source]}
+                {SOURCE_LABELS[source]}
               </span>
-              <span className="text-xs text-zinc-400">{game.playtimeHours}h playtime</span>
-              <span className="text-xs text-zinc-500">
-                Last played {new Date(game.lastPlayed).toLocaleDateString()}
-              </span>
+              <span className="text-xs text-zinc-400">{Math.round(game.playtime)}h playtime</span>
+              {game.lastPlayed && (
+                <span className="text-xs text-zinc-500">
+                  Last played {new Date(game.lastPlayed).toLocaleDateString()}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -194,12 +278,11 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
         </div>
 
         {/* Overall progress bar */}
-        <div className="flex flex-col gap-1.5">
+        <div className="relative flex flex-col gap-1.5">
           <div className="flex justify-between text-xs text-zinc-400">
             <span>
               {unlockedCount} / {game.totalAchievements} achievements
             </span>
-            <span>{totalPoints} points earned</span>
           </div>
           <div className="bg-black/40 rounded-full h-3 overflow-hidden">
             <div
@@ -261,7 +344,11 @@ export function GameDetail({ gameId, onBack }: GameDetailProps) {
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <span className="text-3xl mb-2">🔍</span>
-          <p className="text-zinc-400">No achievements match your filter.</p>
+          <p className="text-zinc-400">
+            {achievements.length === 0
+              ? "No achievements found for this game."
+              : "No achievements match your filter."}
+          </p>
         </div>
       )}
     </div>
