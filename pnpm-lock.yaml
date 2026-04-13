@@ -67,6 +67,9 @@ importers:
       "@achievement-watcher/plugin-goldberg":
         specifier: workspace:^
         version: link:../../plugins/goldberg
+      "@achievement-watcher/plugin-greenluma":
+        specifier: workspace:^
+        version: link:../../plugins/greenluma
       "@achievement-watcher/plugin-retroarch":
         specifier: workspace:^
         version: link:../../plugins/retroarch
@@ -76,6 +79,9 @@ importers:
       "@achievement-watcher/plugin-skidrow":
         specifier: workspace:^
         version: link:../../plugins/skidrow
+      "@achievement-watcher/plugin-smartsteamemu":
+        specifier: workspace:^
+        version: link:../../plugins/smartsteamemu
       "@achievement-watcher/plugin-steam":
         specifier: workspace:^
         version: link:../../plugins/steam

@@ -19,6 +19,8 @@
     "@achievement-watcher/plugin-steam": "workspace:^",
     "@achievement-watcher/plugin-uplay-r1": "workspace:^",
     "@achievement-watcher/plugin-uplay-r2": "workspace:^",
+    "@achievement-watcher/plugin-smartsteamemu": "workspace:^",
+    "@achievement-watcher/plugin-greenluma": "workspace:^",
     "@achievement-watcher/shared": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "electron": "33",

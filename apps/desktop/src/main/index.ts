@@ -14,6 +14,8 @@ import { retroArchPlugin } from "@achievement-watcher/plugin-retroarch";
 import { rpcs3Plugin } from "@achievement-watcher/plugin-rpcs3";
 import { uplayR1Plugin } from "@achievement-watcher/plugin-uplay-r1";
 import { uplayR2Plugin } from "@achievement-watcher/plugin-uplay-r2";
+import { smartSteamEmuPlugin } from "@achievement-watcher/plugin-smartsteamemu";
+import { greenlumaPlugin } from "@achievement-watcher/plugin-greenluma";
 import { registerIpcHandlers } from "./ipc-handlers.js";
 import { showOverlay } from "./overlay.js";
 
@@ -42,6 +44,8 @@ registry.register(retroArchPlugin);
 registry.register(rpcs3Plugin);
 registry.register(uplayR1Plugin);
 registry.register(uplayR2Plugin);
+registry.register(smartSteamEmuPlugin);
+registry.register(greenlumaPlugin);
 
 // ── Engine ────────────────────────────────────────────────────────
 const engine = createAchievementEngine({ registry, db });
