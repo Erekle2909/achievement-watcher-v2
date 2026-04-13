@@ -1,4 +1,5 @@
 export { createPluginRegistry, type PluginRegistry } from "./plugin-loader.js";
+export { parseSSEBinary, type SSEEntry } from "./sse-parser.js";
 export { parseAchievementIni } from "./ini-parser.js";
 export { parseJsonAchievementSave } from "./json-achievement-parser.js";
 export {

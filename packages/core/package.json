@@ -11,7 +11,8 @@
   "dependencies": {
     "@achievement-watcher/db": "workspace:*",
     "@achievement-watcher/shared": "workspace:*",
-    "chokidar": "^5.0.0"
+    "chokidar": "^5.0.0",
+    "crc": "^4.3.2"
   },
   "devDependencies": {
     "@achievement-watcher/plugin-goldberg": "workspace:*",
