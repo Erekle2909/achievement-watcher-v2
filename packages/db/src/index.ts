@@ -1,4 +1,5 @@
 export { createDatabase, closeDatabase, type DatabaseConnection } from "./connection.js";
+export { initializeDatabase } from "./init.js";
 export { games, achievements, sessions, settings, pluginState } from "./schema/index.js";
 export {
   gameQueries,
