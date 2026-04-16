@@ -8,23 +8,33 @@ import type { MetadataCache } from "./metadata-cache.js";
 
 type DB = Parameters<typeof gameQueries>[0];
 
+interface StoreInfo {
+  name: string | null;
+  headerImage: string | null;
+}
+
 /**
- * Fetch the real public game name from the Steam Store API.
- * This is more reliable than GetSchemaForGame which sometimes returns internal names.
+ * Fetch the real public game name AND header image from the Steam Store API.
+ * More reliable than GetSchemaForGame which sometimes returns internal names.
+ * Also gets the correct header image URL (new games use store_item_assets path).
  */
-async function fetchStoreName(appId: string): Promise<string | null> {
+async function fetchStoreInfo(appId: string): Promise<StoreInfo> {
   try {
     const url = `https://store.steampowered.com/api/appdetails?appids=${appId}`;
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) return { name: null, headerImage: null };
     const json = (await res.json()) as Record<
       string,
-      { success: boolean; data?: { name: string } }
+      { success: boolean; data?: { name: string; header_image: string } }
     >;
     const entry = json[appId];
-    return entry?.success ? (entry.data?.name ?? null) : null;
+    if (!entry?.success) return { name: null, headerImage: null };
+    return {
+      name: entry.data?.name ?? null,
+      headerImage: entry.data?.header_image ?? null,
+    };
   } catch {
-    return null;
+    return { name: null, headerImage: null };
   }
 }
 
@@ -57,19 +67,20 @@ export function createMetadataEnricher(cache: MetadataCache, apiKey: string): Me
 
       // Update game header icon and name.
       // GetSchemaForGame sometimes returns internal names (e.g. "CJSteam", "game_EN").
-      // Use Steam Store API as fallback for the real public name.
+      // Steam Store API provides real public name AND correct header image URL.
       const gq = gameQueries(db);
       const existing = gq.getById(gameId);
       if (existing) {
+        // Always fetch store info for the real header image (new games use different CDN paths)
+        const storeInfo = await fetchStoreInfo(appId);
         let gameName = existing.name;
         if (existing.name === existing.appId || /^[A-Z][a-z]+[A-Z]/.test(existing.name)) {
-          // Name is still raw appId or looks like an internal codename — try to get real name
-          gameName = (await fetchStoreName(appId)) ?? schema.gameName;
+          gameName = storeInfo.name ?? schema.gameName;
         }
         gq.upsert({
           ...existing,
           name: gameName,
-          iconUrl: getSteamHeaderUrl(appId),
+          iconUrl: storeInfo.headerImage ?? getSteamHeaderUrl(appId),
         });
       }
 
