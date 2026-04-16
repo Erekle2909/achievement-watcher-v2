@@ -15,6 +15,7 @@ export const empressPlugin: AchievementPlugin = {
 
   detectGame(dirPath: string) {
     const appId = dirPath.split(/[\\/]/).pop() ?? "";
+    if (!/^\d+$/.test(appId)) return Promise.resolve(false);
     return Promise.resolve(existsSync(join(dirPath, getEmpressSaveFile(appId))));
   },
 

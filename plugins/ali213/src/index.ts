@@ -14,6 +14,8 @@ export const ali213Plugin: AchievementPlugin = {
   },
 
   detectGame(dirPath: string) {
+    const dirName = dirPath.split(/[\\/]/).pop() ?? "";
+    if (!/^\d+$/.test(dirName)) return Promise.resolve(false);
     return Promise.resolve(existsSync(join(dirPath, ALI213_SAVE_FILE)));
   },
 

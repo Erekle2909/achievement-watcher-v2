@@ -20,6 +20,8 @@ export const smartSteamEmuPlugin: AchievementPlugin = {
   },
 
   detectGame(dirPath: string) {
+    const dirName = dirPath.split(/[\\/]/).pop() ?? "";
+    if (!/^\d+$/.test(dirName)) return Promise.resolve(false);
     return Promise.resolve(
       existsSync(join(dirPath, SSE_BIN_FILE)) || existsSync(join(dirPath, SSE_INI_FILE)),
     );

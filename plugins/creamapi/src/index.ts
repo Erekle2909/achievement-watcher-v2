@@ -14,6 +14,8 @@ export const creamApiPlugin: AchievementPlugin = {
   },
 
   detectGame(dirPath: string) {
+    const dirName = dirPath.split(/[\\/]/).pop() ?? "";
+    if (!/^\d+$/.test(dirName)) return Promise.resolve(false);
     return Promise.resolve(existsSync(join(dirPath, CREAMAPI_SAVE_FILE)));
   },
 

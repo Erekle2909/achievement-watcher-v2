@@ -14,6 +14,11 @@ export const goldbergPlugin: AchievementPlugin = {
   },
 
   detectGame(dirPath: string) {
+    // The directory name must be a numeric Steam appId.
+    // Non-numeric names (e.g. "CJSteam") are user-level directories
+    // from some Goldberg builds and should not be treated as games.
+    const dirName = dirPath.split(/[\\/]/).pop() ?? "";
+    if (!/^\d+$/.test(dirName)) return Promise.resolve(false);
     return Promise.resolve(existsSync(join(dirPath, GOLDBERG_SAVE_FILE)));
   },
 
