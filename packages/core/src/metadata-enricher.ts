@@ -8,6 +8,26 @@ import type { MetadataCache } from "./metadata-cache.js";
 
 type DB = Parameters<typeof gameQueries>[0];
 
+/**
+ * Fetch the real public game name from the Steam Store API.
+ * This is more reliable than GetSchemaForGame which sometimes returns internal names.
+ */
+async function fetchStoreName(appId: string): Promise<string | null> {
+  try {
+    const url = `https://store.steampowered.com/api/appdetails?appids=${appId}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = (await res.json()) as Record<
+      string,
+      { success: boolean; data?: { name: string } }
+    >;
+    const entry = json[appId];
+    return entry?.success ? (entry.data?.name ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface MetadataEnricher {
   enrichGame(appId: string, gameId: string, db: DB): Promise<void>;
 }
@@ -35,17 +55,20 @@ export function createMetadataEnricher(cache: MetadataCache, apiKey: string): Me
         `[enricher] Schema has ${String(schema.availableGameStats.achievements.length)} achievements for ${appId}`,
       );
 
-      // Update game header icon. Only update name if the current name
-      // is still just the raw appId — the GetOwnedGames API usually
-      // provides better names than GetSchemaForGame (which sometimes
-      // returns internal names like "game_EN" or "Oak").
+      // Update game header icon and name.
+      // GetSchemaForGame sometimes returns internal names (e.g. "CJSteam", "game_EN").
+      // Use Steam Store API as fallback for the real public name.
       const gq = gameQueries(db);
       const existing = gq.getById(gameId);
       if (existing) {
-        const shouldUpdateName = existing.name === existing.appId && schema.gameName;
+        let gameName = existing.name;
+        if (existing.name === existing.appId || /^[A-Z][a-z]+[A-Z]/.test(existing.name)) {
+          // Name is still raw appId or looks like an internal codename — try to get real name
+          gameName = (await fetchStoreName(appId)) ?? schema.gameName;
+        }
         gq.upsert({
           ...existing,
-          name: shouldUpdateName ? schema.gameName : existing.name,
+          name: gameName,
           iconUrl: getSteamHeaderUrl(appId),
         });
       }
