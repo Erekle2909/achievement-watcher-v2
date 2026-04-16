@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { games } from "../schema/games.js";
 import type { DatabaseConnection } from "../connection.js";
 
@@ -28,7 +28,11 @@ export function gameQueries(db: DB) {
         .onConflictDoUpdate({
           target: games.id,
           set: {
-            name: game.name,
+            // Only overwrite name if the new value is a real name (not just the
+            // raw appId). This prevents rescans from wiping enriched names with
+            // placeholder values from emu plugins that return appId as the name.
+            // If the new name equals appId, keep whatever is already stored.
+            name: sql`CASE WHEN ${game.name} != ${game.appId} THEN ${game.name} ELSE ${games.name} END`,
             source: game.source,
             installPath: game.installPath,
             iconUrl: game.iconUrl,

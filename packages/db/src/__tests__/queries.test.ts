@@ -197,19 +197,36 @@ describe("Achievement queries", () => {
     expect(aq.getByGameId("game-1")).toHaveLength(2);
   });
 
-  it("updates achievement on upsertMany conflict", () => {
+  it("upsertMany conflict updates unlock status but preserves metadata", () => {
     const gq = gameQueries(conn.drizzle);
     const aq = achievementQueries(conn.drizzle);
     gq.upsert({ id: "game-1", appId: "100", name: "Game", source: "steam", installPath: "/g" });
     aq.upsertMany("game-1", [
-      { id: "ach-1", gameId: "game-1", achievementId: "WIN", name: "Win", description: "Old" },
+      { id: "ach-1", gameId: "game-1", achievementId: "WIN", name: "Win", description: "Original" },
     ]);
+    // Simulate enricher updating metadata
+    aq.updateMetadata("ach-1", "Victory!", "Win your first match", "icon.jpg", "icon_gray.jpg");
+    // Simulate rescan — upsertMany should NOT overwrite enriched metadata
     aq.upsertMany("game-1", [
-      { id: "ach-1", gameId: "game-1", achievementId: "WIN", name: "Win", description: "New" },
+      {
+        id: "ach-1",
+        gameId: "game-1",
+        achievementId: "WIN",
+        name: "WIN",
+        description: "",
+        unlocked: true,
+        unlockTime: 1700000000,
+      },
     ]);
     const achs = aq.getByGameId("game-1");
     expect(achs).toHaveLength(1);
-    expect(achs[0]?.description).toBe("New");
+    // Metadata preserved from enricher
+    expect(achs[0]?.name).toBe("Victory!");
+    expect(achs[0]?.description).toBe("Win your first match");
+    expect(achs[0]?.iconUrl).toBe("icon.jpg");
+    // Unlock status updated by upsertMany
+    expect(achs[0]?.unlocked).toBe(true);
+    expect(achs[0]?.unlockTime).toBe(1700000000);
   });
 
   it("marks an achievement unlocked", () => {

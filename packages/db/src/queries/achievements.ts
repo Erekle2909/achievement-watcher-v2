@@ -30,14 +30,14 @@ export function achievementQueries(db: DB) {
           .onConflictDoUpdate({
             target: achievements.id,
             set: {
-              name: ach.name,
-              description: ach.description,
-              iconUrl: ach.iconUrl,
-              iconLockedUrl: ach.iconLockedUrl,
-              unlocked: ach.unlocked,
+              // Only update unlock status and rarity on conflict.
+              // Metadata fields (name, description, iconUrl, iconLockedUrl) are
+              // written by the enricher via updateMetadata() and must NOT be
+              // overwritten with raw plugin data on rescan.
+              unlocked: ach.unlocked ?? false,
               unlockTime: ach.unlockTime,
               rarity: ach.rarity,
-              hidden: ach.hidden,
+              hidden: ach.hidden ?? false,
             },
           })
           .run();
